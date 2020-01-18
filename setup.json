@@ -14,17 +14,8 @@
     ],
     "version": "0.1.0a0",
     "entry_points": {
-        "aiida.data": [
-            "twinpy = aiida_twinpy.data:DiffParameters"
-        ],
-        "aiida.calculations": [
-            "twinpy = aiida_twinpy.calculations:DiffCalculation"
-        ],
-        "aiida.parsers": [
-            "twinpy = aiida_twinpy.parsers:DiffParser"
-        ],
-        "aiida.cmdline.data": [
-            "twinpy = aiida_twinpy.cli:data_cli"
+        "aiida.workflows": [
+            "twinpy.twinpy = aiida_twinpy.workflows.twinpy: TwinpyWorkChain"
         ]
     },
     "include_package_data": true,
