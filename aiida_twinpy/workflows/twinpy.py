@@ -10,6 +10,7 @@ from aiida_phonopy.common.utils import (
 from twinpy.crystalmaker import is_hexagonal_metal, Hexagonal
 # from aiida_twinpy.common.generate_inputs import get_aiida_structuredata
 from aiida_twinpy.common.utils import get_hexagonal_twin_boudary_structure
+from aiida_twinpy.common.generate_inputs import get_vasp_builder
 
 
 # Should be improved by some kind of WorkChainFactory
@@ -33,9 +34,15 @@ class TwinpyWorkChain(WorkChain):
         spec.input('twintype', valid_type=Int, required=True)
         spec.input('dim', valid_type=ArrayData, required=True)
         spec.input('translation', valid_type=ArrayData, required=True)
+        # spec.input('translation_grids', valid_type=ArrayData, required=True)
+        spec.input('vasp_settings', valid_type=Dict, required=True)
+        # spec.input('code', valid_type=Str, required=True)
+        # spec.input('computer', valid_type=Str, required=True)
+        # spec.input('queue', valid_type=Str, required=False)
 
         spec.outline(
-            cls.create_hexagonal_twin_boudary_structure
+            cls.create_hexagonal_twin_boudary_structure,
+            cls.run_vasp
         )
         spec.output('parent_structure', valid_type=StructureData, required=True)
         spec.output('twin_structure', valid_type=StructureData, required=True)
@@ -56,6 +63,17 @@ class TwinpyWorkChain(WorkChain):
         self.out('twin_structure', self.ctx.twin)
         self.out('twinboundary_structure', self.ctx.twinboundary)
 
+    def run_vasp(self):
+        self.report('run translations calculations')
+
+        builder = get_vasp_builder(self.ctx.twinboundary,
+                                   self.inputs.vasp_settings)
+        future = self.submit(builder)
+        self.report('twinpy calculation {}'.format(future.pk))
+
+        # future = self.submit(builder)
+        # self.report('{} pk = {}'.format(label, future.pk))
+        # self.to_context(**{label: future})
 
 
     # def run_static_calculations(self):

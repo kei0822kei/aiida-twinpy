@@ -6,34 +6,34 @@ from twinpy.crystalmaker import get_pymatgen_structure, is_hexagonal_metal, Hexa
 
 
 @calcfunction
-def get_hexagonal_twin_boudary_structure(aiida_structure,
-                                         aiida_twinmode,
-                                         aiida_twintype,
-                                         aiida_dim,
-                                         aiida_translation):
+def get_hexagonal_twin_boudary_structure(structure,
+                                         twinmode,
+                                         twintype,
+                                         dim,
+                                         translation):
     return_vals = {}
 
-    pmgstructure = aiida_structure.get_pymatgen()
+    pmgstructure = structure.get_pymatgen()
     lattice = pmgstructure.lattice.matrix
     positions = pmgstructure.frac_coords
     elements = [ element.Z for element in pmgstructure.species ]
-    structure = (lattice, positions, elements)
-    if not is_hexagonal_metal(structure):
+    hexagonal = (lattice, positions, elements)
+    if not is_hexagonal_metal(hexagonal):
         raise ValueError("input sturucture is not hexagonal metal")
     a = lattice[0,0]
     c = lattice[2,2]
     element = elements[0]
-    dim = aiida_dim.get_array(aiida_dim.get_arraynames()[0])
-    translation = aiida_translation.get_array(aiida_translation.get_arraynames()[0])
-    hexagonal = Hexagonal(a, c, element, aiida_twinmode.value)
-    parent = hexagonal.get_parent_structure(dim,
-                                            translation)
-    twin = hexagonal.get_twin_structure(aiida_twintype.value,
-                                        dim,
-                                        translation)
-    twinboundary = hexagonal.get_twin_boundary(aiida_twintype.value,
-                                               dim,
-                                               translation)
+    dimension = dim.get_array(dim.get_arraynames()[0])
+    trans = translation.get_array(translation.get_arraynames()[0])
+    hexagonal = Hexagonal(a, c, element, twinmode.value)
+    parent = hexagonal.get_parent_structure(dimension,
+                                            trans)
+    twin = hexagonal.get_twin_structure(twintype.value,
+                                        dimension,
+                                        trans)
+    twinboundary = hexagonal.get_twin_boundary(twintype.value,
+                                               dimension,
+                                               trans)
     return_vals['parent_structure'] = get_aiida_structure(parent)
     return_vals['twin_structure'] = get_aiida_structure(twin)
     return_vals['twinboundary_structure'] = get_aiida_structure(twinboundary)
