@@ -2,13 +2,16 @@ import numpy as np
 from aiida.engine import calcfunction
 from aiida.plugins import DataFactory
 from aiida.orm import Bool, Str, Int, load_node
+from aiida.orm.nodes.data import StructureData
+from pymatgen.core.structure import Structure
 from twinpy.crystalmaker import is_hexagonal_metal, Hexagonal
 
 ArrayData = DataFactory('array')
+# StructureData = DataFactory('structure') broken
 
 
 @calcfunction
-def get_hexagonal_twin_boudary_structures(structure,
+def get_hexagonal_twin_boudary_structures(aiidastructure,
                                           twinmode,
                                           twintype,
                                           dim,
@@ -22,7 +25,8 @@ def get_hexagonal_twin_boudary_structures(structure,
     translations_array.set_array('grid_points', translations)
     return_vals['grid_points'] = translations_array
 
-    pmgstructure = structure.get_pymatgen_structure()
+    pmgstructure = aiidastructure.get_pymatgen_structure()
+    # pmgstructure = get_pymatgen_from_aiida_structure(aiidastructure)
     dimension = dim.get_array(dim.get_arraynames()[0])
     for i, translation in enumerate(translations):
         tb_structure = get_hexagonal_twin_boudary_structure(
@@ -32,8 +36,10 @@ def get_hexagonal_twin_boudary_structures(structure,
                            dimension,
                            translation
                        )
-        return_vals['twinboundary_%s' % str(i)] = \
-                get_aiida_structure(tb_structure)
+        # return_vals['twinboundary_%s' % str(i)] = \
+        #         get_aiida_structure_from_pymatgen(tb_structure)
+        aiida_tbstructure = StructureData(pymatgen_structure=tb_structure)
+        return_vals['twinboundary_%s' % str(i)] = aiida_tbstructure
 
     return return_vals
 
@@ -58,13 +64,23 @@ def get_hexagonal_twin_boudary_structure(structure,
     return twinboundary
 
 
-def get_aiida_structure(structure):
-    elements = [ element.value for element in structure.species ]
-    aiidastructure = DataFactory('structure')(structure.lattice.matrix)
-    for symbol, position in zip(elements, structure.frac_coords):
-        aiidastructure.append_atom(position=position, symbols=symbol)
-    return aiidastructure
-
+# def get_aiida_structure_from_pymatgen(structure):
+#     aiidastructure = StructureData(pymatgen_structure=structure)
+#     return aiidastructure
+# 
+# def get_pymatgen_from_aiida_structure(aiidastructure):
+    # aiidastructure.get_pymatgen_structure() is broken (2020/1/20)
+    # lattice = aiidastructure.cell
+    # positions = []
+    # species = []
+    # for site in aiidastructure.sites:
+    #     positions.append(site.position)
+    #     species.append(site.kind_name)
+    # structure = Structure(lattice=lattice,
+    #                       coords=positions,
+    #                       species=species,
+    #                       coords_are_cartesian=True)
+    # return structure
 
 def create_grid_from_zero_to_one(grid_num):
     """
