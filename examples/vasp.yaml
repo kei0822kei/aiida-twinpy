@@ -1,0 +1,36 @@
+description: this is description
+label: this is label
+code: vasp544mpi
+computer: stern
+clean_workdir: false
+queue: None
+kpoints:
+    mesh:
+    - 6
+    - 6
+    - 6
+    offset:
+    - 0.5
+    - 0.5
+    - 0.5
+options:
+    max_wallclock_seconds: 36000
+    tot_num_mpiprocs: 16
+incar:
+    addgrid: true
+    ediff: 1.0e-06
+    encut: 375
+    gga: PS
+    ialgo: 38
+    ismear: 0
+    lcharg: false
+    lreal: false
+    lwave: false
+    npar: 4
+    prec: Accurate
+    sigma: 0.01
+potcar:
+    potential_family: PBE.54
+    potential_mapping:
+        As: As
+        Ga: Ga

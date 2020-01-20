@@ -7,10 +7,12 @@ from aiida_phonopy.common.utils import (
     get_force_sets, get_force_constants, get_nac_params, get_phonon,
     get_phonon_setting_info, check_imported_supercell_structure,
     from_node_id_to_aiida_node_id, get_data_from_node_id)
+import aiida_twinpy
 from twinpy.crystalmaker import is_hexagonal_metal, Hexagonal
 # from aiida_twinpy.common.generate_inputs import get_aiida_structuredata
-from aiida_twinpy.common.utils import get_hexagonal_twin_boudary_structure
+from aiida.engine import if_
 from aiida_twinpy.common.generate_inputs import get_vasp_builder
+from aiida_twinpy.common.utils import get_hexagonal_twin_boudary_structures
 
 
 # Should be improved by some kind of WorkChainFactory
@@ -21,56 +23,139 @@ ArrayData = DataFactory('array')
 StructureData = DataFactory('structure')
 
 
-class TwinpyWorkChain(WorkChain):
+class TwinBoundariesWorkChain(WorkChain):
     """
-    Workchain to do a twin calculation using phonopy
+    Workchain to construct many twin boundaries and run static vasp calculation
     """
 
     @classmethod
     def define(cls, spec):
-        super(TwinpyWorkChain, cls).define(spec)
-        spec.input('runmode', valid_type=StructureData, required=True)
+        super(TwinBoundariesWorkChain, cls).define(spec)
         spec.input('structure', valid_type=StructureData, required=True)
         spec.input('twinmode', valid_type=Str, required=True)
         spec.input('twintype', valid_type=Int, required=True)
         spec.input('dim', valid_type=ArrayData, required=True)
-        spec.input('translation', valid_type=ArrayData, required=True)
-        # spec.input('translation_grids', valid_type=ArrayData, required=True)
+        spec.input('translation_grids', valid_type=ArrayData, required=True)
         spec.input('vasp_settings', valid_type=Dict, required=True)
-        # spec.input('code', valid_type=Str, required=True)
-        # spec.input('computer', valid_type=Str, required=True)
-        # spec.input('queue', valid_type=Str, required=False)
+        spec.input('dry_run', valid_type=Bool, required=True)
 
         spec.outline(
-            cls.create_hexagonal_twin_boudary_structure,
-            cls.run_vasp
+            cls.create_hexagonal_twin_boudary_structures,
+            if_(cls.dry_run)(
+            cls.postprocess_of_dry_run,
+            ).else_(
+                cls.run_vasp
+                )
         )
-        spec.output('parent_structure', valid_type=StructureData, required=True)
-        spec.output('twin_structure', valid_type=StructureData, required=True)
-        spec.output('twinboundary_structure', valid_type=StructureData, required=True)
+        # spec.output('parent_structure', valid_type=StructureData, required=True)
+        # spec.output('twin_structure', valid_type=StructureData, required=True)
+        # spec.output('twinboundary_structure', valid_type=StructureData, required=True)
+        spec.output('grid_points', valid_type=ArrayData, required=True)
 
-    def create_hexagonal_twin_boudary_structure(self):
-        return_vals = get_hexagonal_twin_boudary_structure(
+    def create_hexagonal_twin_boudary_structures(self):
+        """
+        Set default settings and create twin boundaries
+        """
+        self.report('create twin boundary structures')
+
+        return_vals = get_hexagonal_twin_boudary_structures(
                 self.inputs.structure,
                 self.inputs.twinmode,
                 self.inputs.twintype,
                 self.inputs.dim,
-                self.inputs.translation
+                self.inputs.translation_grids
                 )
-        self.ctx.parent = return_vals['parent_structure']
-        self.ctx.twin = return_vals['twin_structure']
-        self.ctx.twinboundary = return_vals['twinboundary_structure']
-        self.out('parent_structure', self.ctx.parent)
-        self.out('twin_structure', self.ctx.twin)
-        self.out('twinboundary_structure', self.ctx.twinboundary)
+        self.ctx.twinboundaries = {}
+        for i in range(len(return_vals) - 1):
+            label = 'twinboundary_' + str(i)
+            self.ctx.twinboundaries[label] = return_vals[label]
+        # self.out('parent_structure', self.ctx.parent)
+        # self.out('twin_structure', self.ctx.twin)
+        self.out('grid_points', return_vals['grid_points'])
 
     def run_vasp(self):
         self.report('run translations calculations')
+        for i in range(len(self.ctx.twinboundaries)):
+            label = 'twinboundary_' + str(i)
+            builder = get_vasp_builder(self.ctx.twinboundaries[label],
+                                       self.inputs.vasp_settings)
+            future = self.submit(builder)
+            self.report('twinpy calculation {} pk {}'.format(label, future.pk))
+            self.to_context(**{label: future})
 
-        builder = get_vasp_builder(self.ctx.twinboundary,
-                                   self.inputs.vasp_settings)
-        future = self.submit(builder)
-        self.report('twinpy calculation {}'.format(future.pk))
+    def dry_run(self):
+        return self.inputs.dry_run
+
+    def postprocess_of_dry_run(self):
+        self.report('Finish here because of dry-run setting')
+    # def run_vasp(self):
+    #     self.report('run translations calculations')
+
+    #     builder = get_vasp_builder(self.ctx.twinboundary,
+    #                                self.inputs.vasp_settings)
+    #     future = self.submit(builder)
+    #     self.report('twinpy calculation {}'.format(future.pk))
+
+
+
+    # def initialize_supercell_phonon_calculation(self):
+
+    #     if self.inputs.run_phonopy and self.inputs.remote_phonopy:
+    #         if ('code_string' not in self.inputs or
+    #             'options' not in self.inputs):
+    #             raise RuntimeError(
+    #                 "code_string and options have to be specified.")
+
+    #     if 'supercell_matrix' not in self.inputs.phonon_settings.attributes:
+    #         raise RuntimeError(
+    #             "supercell_matrix was not found in phonon_settings.")
+
+    #     if 'displacement_dataset' in self.inputs:
+    #         return_vals = get_phonon_setting_info(
+    #             self.inputs.phonon_settings,
+    #             self.inputs.structure,
+    #             self.inputs.symmetry_tolerance,
+    #             displacement_dataset=self.inputs.displacement_dataset)
+    #     else:
+    #         return_vals = get_phonon_setting_info(
+    #             self.inputs.phonon_settings,
+    #             self.inputs.structure,
+    #             self.inputs.symmetry_tolerance)
+    #     self.ctx.phonon_setting_info = return_vals['phonon_setting_info']
+    #     self.out('phonon_setting_info', self.ctx.phonon_setting_info)
+
+    #     self.ctx.supercells = {}
+    #     for i in range(len(return_vals) - 3):
+    #         label = "supercell_%03d" % (i + 1)
+    #         self.ctx.supercells[label] = return_vals[label]
+    #     self.ctx.primitive = return_vals['primitive']
+    #     self.ctx.supercell = return_vals['supercell']
+    #     self.out('primitive', self.ctx.primitive)
+    #     self.out('supercell', self.ctx.supercell)
+
+
+
+
+
+    # def create_hexagonal_twin_boudary_structure(self):
+    #     """
+    #     Set default settings and create twin boundaries
+    #     """
+    #     self.report('initialize_supercell_phonon_calculation')
+    #     return_vals = get_hexagonal_twin_boudary_structure(
+    #             self.inputs.structure,
+    #             self.inputs.twinmode,
+    #             self.inputs.twintype,
+    #             self.inputs.dim,
+    #             self.inputs.translation
+    #             )
+    #     self.ctx.parent = return_vals['parent_structure']
+    #     self.ctx.twin = return_vals['twin_structure']
+    #     self.ctx.twinboundary = return_vals['twinboundary_structure']
+    #     self.out('parent_structure', self.ctx.parent)
+    #     self.out('twin_structure', self.ctx.twin)
+    #     self.out('twinboundary_structure', self.ctx.twinboundary)
+
 
         # future = self.submit(builder)
         # self.report('{} pk = {}'.format(label, future.pk))

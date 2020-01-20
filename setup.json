@@ -15,7 +15,7 @@
     "version": "0.1.0a0",
     "entry_points": {
         "aiida.workflows": [
-            "twinpy.twinpy = aiida_twinpy.workflows.twinpy: TwinpyWorkChain"
+            "twinpy.multitwins = aiida_twinpy.workflows.twinboundaries: TwinBoundariesWorkChain"
         ]
     },
     "include_package_data": true,

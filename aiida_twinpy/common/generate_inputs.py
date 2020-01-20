@@ -6,7 +6,7 @@ from aiidaplus import vasp as apvasp
 import argparse
 from aiida.cmdline.utils.decorators import with_dbenv
 from aiida.common.extendeddicts import AttributeDict
-from aiida.orm import Code, Group, load_node
+from aiida.orm import Code, Str
 from aiida.plugins import WorkflowFactory
 from aiida_vasp.utils.aiida_utils import get_data_class, get_data_node
 
@@ -45,86 +45,23 @@ def get_vasp_builder(structure, params):
             get_data_node('dict', dict=params['potcar']['potential_mapping'])
     return builder
 
+def get_relax_builder(structure, params):
+    workflow = WorkflowFactory('vasp.relax')
+    builder = workflow.get_builder()
+    return builder
 
-
-
-
-
-
-
-
-def check_group_existing(group):
-    print("------------------------------------------")
-    print("check group '%s' exists" % group)
-    print("------------------------------------------")
-    test_grp = Group.get(label=group)
-    print("OK\n")
-
-def _is_metal(arg_is_metal):
-    """
-    return bool from input string
-
-        Parameters
-        ----------
-        arg_is_metal : str
-            input string
-
-        Returns
-        -------
-        is_metal : bool
-
-        Raises
-        ------
-        ValueError
-            arg_is_metal is not 'True' or 'False'
-    """
-    if parsers[1] == 'True':
-        is_metal = True
-    elif parsers[1] == 'False':
-        is_metal = False
+def _set_computer_code(builder, workflow, computer, code):
+    if workflow  == 'phonopy.phonopy':
+        builder.code_string = Str('{}@{}'.format(code, computer))
     else:
-        raise ValueError("input arg 'is_metal' os not 'True' or 'False'")
-    return is_metal
+        builder.code = Code.get_from_string('{}@{}'.format(code, computer))
 
-@with_dbenv()
-def export_setting(filetype, is_metal, filename, structure_pk, kdensity):
-    """
-    get aiidaplus-vasp.yaml file
 
-        Parameters
-        ----------
-        filetype : str
-            input file type setting file are exported
-            choose from 'oneshot', 'relax' or 'phonopy'
-        is_metal : bool
-            if structure is metallic, choose True
-            otherwise, choose False
-        filename : str
-            export file name
-        structure_pk : int, default None
-            if you set 'structure_pk', set stucture
-        kdensity : float, default None
-            if you set 'kdensity' and 'structure_pk',
-            consider the density of kpoints.
-            INCLUDED 2 pi
 
-        Returns
-        -------
-        fruit_price : int
-            description
 
-        Notes
-        -----
 
-        Raises
-        ------
-        ValueError
-    """
-    params = apvasp.default_params(filetype, is_metal, structure_pk, kdensity)
-    if os.path.exists(filename):
-        print("file %s already exsists, overwrite file" % filename)
-    with open(filename, 'w') as f:
-        yaml.dump(params, f, indent=4, default_flow_style=False)
+
+
 
 def get_builder(structure, code, computer, queue, wf, paramsml, group=None):
     # from yaml import CLoader as Loader
@@ -134,32 +71,6 @@ def get_builder(structure, code, computer, queue, wf, paramsml, group=None):
     from aiida_vasp.utils.aiida_utils import get_data_class, get_data_node
 
     tot_num_mpiprocs = 16
-
-    def _add_node_to_group(running_pk, group):
-        grp = Group.get(label=group)
-        running_node = load_node(running_pk)
-        grp.add_nodes(running_node)
-        print("pk {0} is added to group '{1}'".format(running_pk, group))
-
-    def _unexpected_workflow():
-        if wf is not ['vasp', 'relax', 'phonopy']:
-            raise ValueError("unexpected workflow: %s" % wf)
-
-    def _load_yaml(filename):
-        # data = yaml.load(open(filename), Loader=Loader)
-        data = yaml.load(open(filename), Loader=yaml.SafeLoader)
-        return data
-
-    def _get_workflow():
-        if wf == 'vasp':
-            workflow = WorkflowFactory('vasp.vasp')
-        elif wf =='relax':
-            workflow = WorkflowFactory('vasp.relax')
-        elif wf == 'phonopy':
-            workflow = WorkflowFactory('phonopy.phonopy')
-        else:
-            _unexpected_workflow()
-        return workflow
 
     def _set_computer_code(builder):
         if code in ['vasp544mpi', 'relax']:

@@ -2,51 +2,84 @@ import numpy as np
 from aiida.engine import calcfunction
 from aiida.plugins import DataFactory
 from aiida.orm import Bool, Str, Int, load_node
-from twinpy.crystalmaker import get_pymatgen_structure, is_hexagonal_metal, Hexagonal
+from twinpy.crystalmaker import is_hexagonal_metal, Hexagonal
+
+ArrayData = DataFactory('array')
 
 
 @calcfunction
+def get_hexagonal_twin_boudary_structures(structure,
+                                          twinmode,
+                                          twintype,
+                                          dim,
+                                          translation_grids):
+    return_vals = {}
+
+    grids_array = translation_grids.get_array(
+            translation_grids.get_arraynames()[0])
+    translations = create_grid_from_zero_to_one(grids_array)
+    translations_array = ArrayData()
+    translations_array.set_array('grid_points', translations)
+    return_vals['grid_points'] = translations_array
+
+    pmgstructure = structure.get_pymatgen_structure()
+    dimension = dim.get_array(dim.get_arraynames()[0])
+    for i, translation in enumerate(translations):
+        tb_structure = get_hexagonal_twin_boudary_structure(
+                           pmgstructure,
+                           twinmode.value,
+                           twintype.value,
+                           dimension,
+                           translation
+                       )
+        return_vals['twinboundary_%s' % str(i)] = \
+                get_aiida_structure(tb_structure)
+
+    return return_vals
+
+
 def get_hexagonal_twin_boudary_structure(structure,
                                          twinmode,
                                          twintype,
                                          dim,
                                          translation):
-    return_vals = {}
 
-    pmgstructure = structure.get_pymatgen()
-    lattice = pmgstructure.lattice.matrix
-    positions = pmgstructure.frac_coords
-    elements = [ element.Z for element in pmgstructure.species ]
-    hexagonal = (lattice, positions, elements)
-    if not is_hexagonal_metal(hexagonal):
-        raise ValueError("input sturucture is not hexagonal metal")
-    a = lattice[0,0]
-    c = lattice[2,2]
-    element = elements[0]
-    dimension = dim.get_array(dim.get_arraynames()[0])
-    trans = translation.get_array(translation.get_arraynames()[0])
-    hexagonal = Hexagonal(a, c, element, twinmode.value)
-    parent = hexagonal.get_parent_structure(dimension,
-                                            trans)
-    twin = hexagonal.get_twin_structure(twintype.value,
-                                        dimension,
-                                        trans)
-    twinboundary = hexagonal.get_twin_boundary(twintype.value,
-                                               dimension,
-                                               trans)
-    return_vals['parent_structure'] = get_aiida_structure(parent)
-    return_vals['twin_structure'] = get_aiida_structure(twin)
-    return_vals['twinboundary_structure'] = get_aiida_structure(twinboundary)
-    return return_vals
+    hexagonal = Hexagonal(structure, twinmode)
+    # parent = hexagonal.get_parent_structure(dimension,
+    #                                         trans)
+    # twin = hexagonal.get_twin_structure(twintype.value,
+    #                                     dimension,
+    #                                     trans)
+    twinboundary = hexagonal.get_twin_boundary(twintype,
+                                               dim,
+                                               translation)
+    # return_vals['parent_structure'] = get_aiida_structure(parent)
+    # return_vals['twin_structure'] = get_aiida_structure(twin)
+    return twinboundary
 
 
 def get_aiida_structure(structure):
-    pmgstructure = get_pymatgen_structure(structure)
-    elements = [ element.value for element in pmgstructure.species ]
-    aiidastructure = DataFactory('structure')(structure[0])
-    for symbol, position in zip(elements, structure[1]):
+    elements = [ element.value for element in structure.species ]
+    aiidastructure = DataFactory('structure')(structure.lattice.matrix)
+    for symbol, position in zip(elements, structure.frac_coords):
         aiidastructure.append_atom(position=position, symbols=symbol)
     return aiidastructure
+
+
+def create_grid_from_zero_to_one(grid_num):
+    """
+    array = np.array([grid1, grid2, grid3]) all int
+    """
+    print(type(grid_num))
+    grids = []
+    l = grid_num[0]
+    m = grid_num[1]
+    n = grid_num[2]
+    for i in range(grid_num[0]):
+        for j in range(grid_num[1]):
+            for k in range(grid_num[2]):
+                grids.append([i/l,j/m,k/n])
+    return np.array(grids)
 
 # @calcfunction
 # def get_hexagonal_twin_boudary_structure(structure,
@@ -376,3 +409,38 @@ def get_aiida_structure(structure):
 #     else:
 #         raise RuntimeError("%s is not supported in load_node."
 #                            % type(node_id))
+# @calcfunction
+# def get_hexagonal_twin_boudary_structure(structure,
+#                                          twinmode,
+#                                          twintype,
+#                                          dim,
+#                                          translation):
+#     return_vals = {}
+# 
+#     pmgstructure = structure.get_pymatgen()
+#     lattice = pmgstructure.lattice.matrix
+#     positions = pmgstructure.frac_coords
+#     elements = [ element.Z for element in pmgstructure.species ]
+#     hexagonal = (lattice, positions, elements)
+#     if not is_hexagonal_metal(hexagonal):
+#         raise ValueError("input sturucture is not hexagonal metal")
+#     a = lattice[0,0]
+#     c = lattice[2,2]
+#     element = elements[0]
+#     dimension = dim.get_array(dim.get_arraynames()[0])
+#     trans = translation.get_array(translation.get_arraynames()[0])
+#     hexagonal = Hexagonal(a, c, element, twinmode.value)
+#     parent = hexagonal.get_parent_structure(dimension,
+#                                             trans)
+#     twin = hexagonal.get_twin_structure(twintype.value,
+#                                         dimension,
+#                                         trans)
+#     twinboundary = hexagonal.get_twin_boundary(twintype.value,
+#                                                dimension,
+#                                                trans)
+#     # return_vals['parent_structure'] = get_aiida_structure(parent)
+#     # return_vals['twin_structure'] = get_aiida_structure(twin)
+#     return_vals['twinboundary_structure'] = get_aiida_structure(twinboundary)
+#     return return_vals
+# 
+# 
