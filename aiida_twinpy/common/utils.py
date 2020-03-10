@@ -4,7 +4,7 @@ from aiida.plugins import DataFactory
 from aiida.orm import Int, Float
 from aiida.orm.nodes.data import StructureData
 from pymatgen.core.structure import Structure
-from twinpy.crystalmaker import is_hexagonal_metal, Hexagonal
+from twinpy.crystalmaker import is_hexagonal_metal, HexagonalTwin
 from twinpy.utils import get_nearest_neighbor_distance
 
 ArrayData = DataFactory('array')
@@ -47,11 +47,14 @@ def get_hexagonal_twin_boudary_structure(structure,
                                          twintype,
                                          dim,
                                          translation):
-
-    hexagonal = Hexagonal(structure, twinmode)
-    twinboundary = hexagonal.get_twin_boundary(twintype,
-                                               dim,
-                                               translation)
+    a = structure.lattice.a
+    c = structure.lattice.c
+    symbol = structure.species[0].value
+    hexagonal = HexagonalTwin(a=a, c=c, twinmode=twinmode, symbol=symbol)
+    twinboundary = hexagonal.get_dichromatic(twintype=twintype,
+                                             dim=dim,
+                                             translation=translation,
+                                             is_complex=True)
     return twinboundary
 
 def create_grid_from_zero_to_one(grid_num):
