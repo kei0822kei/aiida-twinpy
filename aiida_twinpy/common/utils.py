@@ -4,42 +4,31 @@ from aiida.plugins import DataFactory
 from aiida.orm import Int, Float
 from aiida.orm.nodes.data import StructureData
 from pymatgen.core.structure import Structure
-from twinpy.crystalmaker import is_hexagonal_metal, HexagonalTwin
-from twinpy.utils import get_nearest_neighbor_distance
+# from twinpy.crystalmaker import is_hexagonal_metal, HexagonalTwin
+# from twinpy.utils import get_nearest_neighbor_distance
+from twinpy.structure import get_structure, HexagonalClosePacked
 
 ArrayData = DataFactory('array')
 
 @calcfunction
-def get_hexagonal_twin_boudary_structures(aiidastructure,
-                                          twinmode,
-                                          twintype,
-                                          dim,
-                                          translation_grids):
+def get_sheared_structures(structure, twinmode, grids):
+    pmgstructure = structure.get_pymatgen_structure()
+    a = pmgstructure.lattice.a
+    c = pmgstructure.lattice.c
+    specie = pmgstructure.species[0].symbol
+    parent = HexagonalClosePacked(a, c, specie)
+    parent.set_parent(twinmode=twinmode.value)
+    ratios = [ i / (int(grids)-1) for i in range(int(grids)) ]
+    shears = [ get_structure(parent.get_sheared_structure(ratio=ratio))
+                   for ratio in ratios ]
+
     return_vals = {}
-
-    grids_array = translation_grids.get_array(
-            translation_grids.get_arraynames()[0])
-    translations = create_grid_from_zero_to_one(grids_array)
-    translations_array = ArrayData()
-    translations_array.set_array('grid_points', translations)
-    return_vals['grid_points'] = translations_array
-    return_vals['total_structures'] = Int(len(translations))
-
-    pmgstructure = aiidastructure.get_pymatgen_structure()
-    dimension = dim.get_array(dim.get_arraynames()[0])
-    for i, translation in enumerate(translations):
-        tb_structure = get_hexagonal_twin_boudary_structure(
-                           pmgstructure,
-                           twinmode.value,
-                           twintype.value,
-                           dimension,
-                           translation
-                       )
-        neighbor_distance = get_nearest_neighbor_distance(tb_structure)
-        aiida_tbstructure = StructureData(pymatgen_structure=tb_structure)
-        return_vals['neighbor_distance_%03d' % (i+1) ] = Float(neighbor_distance)
-        return_vals['twinboundary_%03d' % (i+1) ] = aiida_tbstructure
-
+    for i in range(len(ratios)):
+        return_vals['gp_%02d' % (i+1) ] = \
+            {
+               'ratio':Float(ratios[i]),
+               'structure':StructureData(pymatgen_structure=shears[i])
+            }
     return return_vals
 
 def get_hexagonal_twin_boudary_structure(structure,
