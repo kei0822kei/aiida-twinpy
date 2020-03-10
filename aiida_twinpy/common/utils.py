@@ -1,12 +1,12 @@
 import numpy as np
 from aiida.engine import calcfunction
 from aiida.plugins import DataFactory
-from aiida.orm import Int, Float
+from aiida.orm import Int, Float, Dict
 from aiida.orm.nodes.data import StructureData
 from pymatgen.core.structure import Structure
 # from twinpy.crystalmaker import is_hexagonal_metal, HexagonalTwin
 # from twinpy.utils import get_nearest_neighbor_distance
-from twinpy.structure import get_structure, HexagonalClosePacked
+from twinpy.structure import get_pymatgen_structure, HexagonalClosePacked
 
 ArrayData = DataFactory('array')
 
@@ -19,16 +19,19 @@ def get_sheared_structures(structure, twinmode, grids):
     parent = HexagonalClosePacked(a, c, specie)
     parent.set_parent(twinmode=twinmode.value)
     ratios = [ i / (int(grids)-1) for i in range(int(grids)) ]
-    shears = [ get_structure(parent.get_sheared_structure(ratio=ratio))
-                   for ratio in ratios ]
+    shears = [ get_pymatgen_structure(
+                   parent.get_sheared_structure(ratio=ratio))
+               for ratio in ratios ]
 
     return_vals = {}
+    return_vals['parent'] = StructureData(
+            pymatgen_structure=get_pymatgen_structure(parent))
+    shear_settings = {'shear_ratios': ratios}
+    return_vals['shear_settings'] = Dict(dict=shear_settings)
     for i in range(len(ratios)):
-        return_vals['gp_%02d' % (i+1) ] = \
-            {
-               'ratio':Float(ratios[i]),
-               'structure':StructureData(pymatgen_structure=shears[i])
-            }
+        shear = StructureData(pymatgen_structure=shears[i])
+        shear.label = 'shear_%03d' % (i+1)
+        return_vals[shear.label] = shear
     return return_vals
 
 def get_hexagonal_twin_boudary_structure(structure,

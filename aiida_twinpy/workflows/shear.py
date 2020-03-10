@@ -36,7 +36,6 @@ class ShearWorkChain(WorkChain):
         spec.input('twinmode', valid_type=Str, required=True)
         spec.input('grids', valid_type=Int, required=True)
         spec.input('incar_settings', valid_type=Dict, required=True)
-        # spec.input('relax_conf', valid_type=AttributeDict, required=True)
         spec.input('relax_conf', valid_type=Dict, required=True)
         spec.input('kpoints', valid_type=KpointsData, required=True)
         spec.input('potential_family', valid_type=Str, required=True)
@@ -45,6 +44,7 @@ class ShearWorkChain(WorkChain):
         spec.input('vaspcode', valid_type=Str, required=True)
         spec.input('verbose', valid_type=Bool, required=True)
         spec.input('dry_run', valid_type=Bool, required=True)
+        spec.output('parent', valid_type=StructureData, required=True)
 
         spec.outline(
             cls.create_sheared_structures,
@@ -79,10 +79,11 @@ class ShearWorkChain(WorkChain):
                 self.inputs.twinmode,
                 self.inputs.grids,
                 )
-        self.ctx.shears = return_vals
-        # hoge = Dict(dict=return_vals)
-        # hoge.store()
-        # self.out('sheared_structures', hoge)
+        self.out('parent', return_vals['parent'])
+        self.ctx.ratios = return_vals['shear_settings']['shear_ratios']
+        for i in range(len(self.ctx.ratios)):
+            label = "shear_%03d" % (i+1)
+            self.ctx.shears[label] = return_vals[label]
 
     def run_relax(self):
         def __get_relax_builder(structure, label):
@@ -169,9 +170,9 @@ class ShearWorkChain(WorkChain):
         self.report('#------------------------------')
         self.report('# run relax calculations')
         self.report('#------------------------------')
-        for gp in self.ctx.shears.keys():
-            label = 'gp: {}, ratio: {}'.format(gp, self.ctx.shears[gp]['ratio'].value)
-            builder = __get_relax_builder(self.ctx.shears[gp]['structure'], label)
+        for i in range(len(self.ctx.ratios)):
+            label = 'shear_%03d' % (i+1)
+            builder = __get_relax_builder(self.ctx.shears[label], label+' relax')
             future = self.submit(builder)
-            self.report('shear calculation (ratio={}) has submitted, pk: {}'
-                    .format(self.ctx.shears[gp]['ratio'], future.pk))
+            self.report('{} relax workflow has submitted, pk: {}'
+                    .format(label, future.pk))
