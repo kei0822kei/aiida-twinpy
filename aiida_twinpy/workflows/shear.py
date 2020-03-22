@@ -42,7 +42,6 @@ class ShearWorkChain(WorkChain):
         spec.input('potential_mapping', valid_type=Dict, required=True)
         spec.input('clean_workdir', valid_type=Bool, required=True)
         spec.input('vaspcode', valid_type=Str, required=True)
-        spec.input('verbose', valid_type=Bool, required=True)
         spec.input('dry_run', valid_type=Bool, required=True)
         spec.output('parent', valid_type=StructureData, required=True)
 
@@ -81,6 +80,7 @@ class ShearWorkChain(WorkChain):
                 )
         self.out('parent', return_vals['parent'])
         self.ctx.ratios = return_vals['shear_settings']['shear_ratios']
+        self.ctx.shears = {}
         for i in range(len(self.ctx.ratios)):
             label = "shear_%03d" % (i+1)
             self.ctx.shears[label] = return_vals[label]
@@ -94,7 +94,7 @@ class ShearWorkChain(WorkChain):
             builder.code = Code.get_from_string('{}@{}'
                     .format(self.inputs.vaspcode.value, self.inputs.computer.value))
             builder.clean_workdir = self.inputs.clean_workdir
-            builder.verbose = self.inputs.verbose
+            builder.verbose = Bool(True)
             __add_options(builder, self.inputs.queue)
             builder.structure = structure
             builder.parameters = self.inputs.incar_settings
@@ -113,18 +113,10 @@ class ShearWorkChain(WorkChain):
         def __add_relax(builder, relax_conf):
             relax_attribute = AttributeDict()
             keys = relax_conf.keys()
-            if 'perform' in keys:
-                relax_attribute.perform = \
-                        Bool(relax_conf['perform'])
-            if 'positions' in keys:
-                relax_attribute.positions = \
-                        Bool(relax_conf['positions'])
-            if 'volume' in keys:
-                relax_attribute.volume = \
-                        Bool(relax_conf['volume'])
-            if 'shape' in keys:
-                relax_attribute.shape = \
-                        Bool(relax_conf['shape'])
+            relax_attribute.perform = Bool(True)
+            relax_attribute.positions = Bool(True)
+            relax_attribute.volume = Bool(False)
+            relax_attribute.shape = Bool(False)
             if 'steps' in keys:
                 relax_attribute.steps = \
                         Int(relax_conf['steps'])
@@ -140,15 +132,6 @@ class ShearWorkChain(WorkChain):
             if 'convergence_positions' in keys:
                 relax_attribute.convergence_positions = \
                         Float(relax_conf['convergence_positions'])
-            if 'convergence_shape_angles' in keys:
-                relax_attribute.convergence_shape_angles = \
-                        Float(relax_conf['convergence_shape_angles'])
-            if 'convergence_shape_lengths' in keys:
-                relax_attribute.convergence_shape_lengths = \
-                        Float(relax_conf['convergence_shape_lengths'])
-            if 'convergence_volume' in keys:
-                relax_attribute.convergence_volume = \
-                        Float(relax_conf['convergence_volume'])
             if 'force_cutoff' in keys:
                 relax_attribute.force_cutoff = \
                         Float(relax_conf['force_cutoff'])
