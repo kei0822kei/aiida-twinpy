@@ -11,17 +11,19 @@ def _get_string(string):
     else:
         return string
 
-def _add_options(builder, queue, max_wallclock_seconds):
+def get_options(queue, max_wallclock_seconds):
     options = AttributeDict()
     options.account = ''
     options.qos = ''
-    options.resources = {'tot_num_mpiprocs': 16,
+    options.resources = {
+                         'tot_num_mpiprocs': 16,
+                         'num_machines': 1,
                          'parallel_env': 'mpi*'}
     options.queue_name = queue
     options.max_wallclock_seconds = max_wallclock_seconds
-    builder.options = Dict(dict=options)
+    return Dict(dict=options)
 
-def _add_relax(builder, relax_conf):
+def get_relax(relax_conf):
     relax_attribute = AttributeDict()
     keys = relax_conf.keys()
     if 'perform' in keys:
@@ -36,6 +38,9 @@ def _add_relax(builder, relax_conf):
     if 'shape' in keys:
         relax_attribute.shape = \
                 Bool(relax_conf['shape'])
+    if 'algo' in keys:
+        relax_attribute.shape = \
+                Bool(relax_conf['algo'])
     if 'steps' in keys:
         relax_attribute.steps = \
                 Int(relax_conf['steps'])
@@ -66,13 +71,7 @@ def _add_relax(builder, relax_conf):
     if 'energy_cutoff' in keys:
         relax_attribute.energy_cutoff = \
                 Float(relax_conf['energy_cutoff'])
-    builder.relax = relax_attribute
-    builder.settings = Dict(
-            dict={
-                   'add_energies': True,
-                   'add_forces': True,
-                   'add_stress': True,
-                 })
+    return relax_attribute
 
 def get_relax_builder(computer,
                       label,
@@ -155,10 +154,23 @@ def get_relax_builder(computer,
     builder.code = Code.get_from_string('{}@{}'.format(vaspcode, computer.value))
     builder.clean_workdir = clean_workdir
     builder.verbose = verbose
-    _add_options(builder, queue, max_wallclock_seconds)
+    builder.options = get_options(queue, max_wallclock_seconds)
     builder.structure = structure
     builder.parameters = incar_settings
-    _add_relax(builder, relax_conf)
+    settings = dict(relax_conf)
+    settings.update({
+        'perform': True,
+        'positions': True,
+        'volume': False,
+        'shape': False,
+    })
+    builder.relax =  get_relax(settings)
+    builder.settings = Dict(
+            dict={
+                   'add_energies': True,
+                   'add_forces': True,
+                   'add_stress': True,
+                 })
     builder.kpoints = kpoints
     builder.potential_family = potential_family
     builder.potential_mapping = potential_mapping

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from aiida.engine import WorkChain, if_
-from aiida.orm import Bool, Str, Int, Dict, StructureData, KpointsData
+from aiida.orm import Bool, Float, Str, Int, Dict, StructureData, KpointsData
 from aiida_twinpy.common.utils import get_sheared_structures
 from aiida_twinpy.common.builder import get_relax_builder
 
@@ -38,6 +38,8 @@ class ShearWorkChain(WorkChain):
         )
 
         spec.output('parent', valid_type=StructureData, required=True)
+        spec.output('strain', valid_type=Float, required=True)
+        spec.output('shear_ratios', valid_type=Dict, required=True)
 
     def dry_run(self):
         return self.inputs.dry_run
@@ -49,6 +51,9 @@ class ShearWorkChain(WorkChain):
         self.report('terminate ShearWorkChain')
 
     def postprocess(self):
+        self.report('#-----------------------------------------')
+        self.report('# ShearWorkChain has finished successfully')
+        self.report('#-----------------------------------------')
         self.report('all jobs have finished')
         self.report('terminate ShearWorkChain')
 
@@ -62,6 +67,8 @@ class ShearWorkChain(WorkChain):
                 self.inputs.grids,
                 )
         self.out('parent', return_vals['parent'])
+        self.out('strain', return_vals['strain'])
+        self.out('shear_ratios', return_vals['shear_settings'])
         self.ctx.ratios = return_vals['shear_settings']['shear_ratios']
         self.ctx.shears = {}
         for i in range(len(self.ctx.ratios)):
@@ -74,7 +81,7 @@ class ShearWorkChain(WorkChain):
         self.report('#------------------------------')
         for i, ratio in enumerate(self.ctx.ratios):
             label = 'shear_%03d' % (i+1)
-            relax_label = "rlx_" + label
+            relax_label = 'rlx_' + label
             relax_description = relax_label + ", ratio: %f" % ratio
             builder = get_relax_builder(
                        computer=self.inputs.computer,
@@ -94,3 +101,11 @@ class ShearWorkChain(WorkChain):
             self.report('{} relax workflow has submitted, pk: {}'
                     .format(label, future.pk))
             self.to_context(**{label: future})
+
+    def collect_results(self):
+        self.report('#----------------')
+        self.report('# collect results')
+        self.report('#----------------')
+        energies = {}
+        for i, ratio in enumerate(self.ctx.ratios):
+            relax_label = 'rlx_' + 'shear_%03d' % (i+1)
