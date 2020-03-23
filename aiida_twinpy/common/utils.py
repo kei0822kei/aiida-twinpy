@@ -11,12 +11,12 @@ from twinpy.structure import get_pymatgen_structure, HexagonalClosePacked
 ArrayData = DataFactory('array')
 
 @calcfunction
-def get_sheared_structures(structure, twinmode, grids):
+def get_sheared_structures(structure, twinmode, grids, wyckoff):
     pmgstructure = structure.get_pymatgen_structure()
     a = pmgstructure.lattice.a
     c = pmgstructure.lattice.c
     specie = pmgstructure.species[0].symbol
-    parent = HexagonalClosePacked(a, c, specie)
+    parent = HexagonalClosePacked(a, c, specie, wyckoff)
     parent.set_parent(twinmode=twinmode.value)
     ratios = [ i / (int(grids)-1) for i in range(int(grids)) ]
     shears = [ get_pymatgen_structure(

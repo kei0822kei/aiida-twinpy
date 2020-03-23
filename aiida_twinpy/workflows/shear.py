@@ -17,11 +17,6 @@ from twinpy.structure import HexagonalClosePacked
 from aiida_twinpy.common.utils import get_sheared_structures
 from aiida_twinpy.common.builder import get_relax_builder
 
-
-# Should be improved by some kind of WorkChainFactory
-# For now all workchains should be copied to aiida/workflows
-
-
 class ShearWorkChain(WorkChain):
     """
     WorkChain for add shear from the original hexagonal twin mode
@@ -30,20 +25,20 @@ class ShearWorkChain(WorkChain):
     @classmethod
     def define(cls, spec):
         super(ShearWorkChain, cls).define(spec)
+        spec.input('clean_workdir', valid_type=Bool, required=True)
         spec.input('computer', valid_type=Str, required=True)
-        spec.input('queue', valid_type=Str, required=True)
-        spec.input('structure', valid_type=StructureData, required=True)
-        spec.input('twinmode', valid_type=Str, required=True)
+        spec.input('dry_run', valid_type=Bool, required=True)
         spec.input('grids', valid_type=Int, required=True)
         spec.input('incar_settings', valid_type=Dict, required=True)
-        spec.input('relax_conf', valid_type=Dict, required=True)
         spec.input('kpoints', valid_type=KpointsData, required=True)
         spec.input('potential_family', valid_type=Str, required=True)
         spec.input('potential_mapping', valid_type=Dict, required=True)
-        spec.input('clean_workdir', valid_type=Bool, required=True)
+        spec.input('queue', valid_type=Str, required=True)
+        spec.input('relax_conf', valid_type=Dict, required=True)
+        spec.input('structure', valid_type=StructureData, required=True)
+        spec.input('twinmode', valid_type=Str, required=True)
         spec.input('vaspcode', valid_type=Str, required=True)
-        spec.input('dry_run', valid_type=Bool, required=True)
-        spec.output('parent', valid_type=StructureData, required=True)
+        spec.input('wyckoff', valid_type=Str, required=False, default=Str('c'))
 
         spec.outline(
             cls.create_sheared_structures,
@@ -54,7 +49,8 @@ class ShearWorkChain(WorkChain):
                 cls.postprocess
                 )
         )
-        # spec.output('sheared_structures', valid_type=Dict, required=True)
+
+        spec.output('parent', valid_type=StructureData, required=True)
 
     def dry_run(self):
         return self.inputs.dry_run
@@ -77,6 +73,7 @@ class ShearWorkChain(WorkChain):
                 self.inputs.structure,
                 self.inputs.twinmode,
                 self.inputs.grids,
+                self.inputs.wyckoff
                 )
         self.out('parent', return_vals['parent'])
         self.ctx.ratios = return_vals['shear_settings']['shear_ratios']
@@ -159,3 +156,4 @@ class ShearWorkChain(WorkChain):
             future = self.submit(builder)
             self.report('{} relax workflow has submitted, pk: {}'
                     .format(label, future.pk))
+            self.to_context(**{label: future})
