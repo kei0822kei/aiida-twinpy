@@ -2,9 +2,14 @@
 
 from aiida.common.extendeddicts import AttributeDict
 from aiida.orm import (load_node, Code, Bool, Dict,
-                       Float, Int, KpointsData, Str)
+                       Float, Int, Str)
 from aiida.plugins import WorkflowFactory
-from aiida_vasp.utils.aiida_utils import get_data_class, get_data_node
+
+def _get_string(string):
+    if type(string) == Str:
+        return string.value
+    else:
+        return string
 
 def _add_options(builder, queue, max_wallclock_seconds):
     options = AttributeDict()
@@ -16,30 +21,7 @@ def _add_options(builder, queue, max_wallclock_seconds):
     options.max_wallclock_seconds = max_wallclock_seconds
     builder.options = Dict(dict=options)
 
-def _add_potcar(builder, potential_family, potential_mapping):
-    builder.potential_family = Str(potential_family)
-    builder.potential_mapping = Dict(dict=potential_mapping)
-
-def _add_kpoints(builder, kpoints, verbose):
-    kpt = KpointsData()
-    if 'kdensity' in kpoints.keys():
-        kpt.set_cell_from_structure(builder.structure)
-        kpt.set_kpoints_mesh_from_density(
-                kpoints['kdensity'], offset=kpoints['offset'])
-        if verbose:
-            kmesh = kpt.get_kpoints_mesh()
-            print("kdensity is: %s" % str(kpoints['kdensity']))
-            print("reciprocal lattice (included 2*pi) is:")
-            print(kpt.reciprocal_cell)
-            print("set kpoints mesh as:")
-            print(kmesh[0])
-            print("set offset as:")
-            print(kmesh[1])
-    else:
-        kpt.set_kpoints_mesh(kpoints['mesh'], offset=kpoints['offset'])
-    builder.kpoints = kpt
-
-def _add_relax(builder, relax_conf, relax_settings):
+def _add_relax(builder, relax_conf):
     relax_attribute = AttributeDict()
     keys = relax_conf.keys()
     if 'perform' in keys:
@@ -85,7 +67,12 @@ def _add_relax(builder, relax_conf, relax_settings):
         relax_attribute.energy_cutoff = \
                 Float(relax_conf['energy_cutoff'])
     builder.relax = relax_attribute
-    builder.settings = Dict(dict=relax_settings)
+    builder.settings = Dict(
+            dict={
+                   'add_energies': True,
+                   'add_forces': True,
+                   'add_stress': True,
+                 })
 
 def get_relax_builder(computer,
                       label,
@@ -93,15 +80,14 @@ def get_relax_builder(computer,
                       structure,
                       incar_settings,
                       relax_conf,
-                      relax_settings,
                       kpoints,
                       potential_family,
                       potential_mapping,
                       queue='',
                       vaspcode='vasp544mpi',
                       max_wallclock_seconds=3600*10,
-                      clean_workdir=True,
-                      verbose=True
+                      clean_workdir=Bool(True),
+                      verbose=Bool(True)
                      ):
     """
     Examples:
@@ -144,18 +130,12 @@ def get_relax_builder(computer,
                  'convergence_volume': 0.01,
                  'force_cutoff': 0.0001,
               }
-        >>> relax_settings = \
-              {
-                 'add_energies': True,
-                 'add_forces': True,
-                 'add_stress': True,
-              }
-        >>> kpoints = \
-              {
-                 'mesh': [6, 6, 6],
-                 # 'kdensity': 0.2,
-                 'offset': [0.5, 0.5, 0.5]
-              }
+        # >>> kpoints = \ => kpoints object
+        #       {
+        #          'mesh': [6, 6, 6],
+        #          # 'kdensity': 0.2,
+        #          'offset': [0.5, 0.5, 0.5]
+        #       }
         >>> potential_family = 'PBE.54'
         >>> potential_mapping = \
               {
@@ -172,46 +152,14 @@ def get_relax_builder(computer,
     builder = workflow.get_builder()
     builder.metadata.label = label
     builder.metadata.description = description
-    builder.code = Code.get_from_string('{}@{}'.format(vaspcode, computer))
+    builder.code = Code.get_from_string('{}@{}'.format(vaspcode, computer.value))
     builder.clean_workdir = clean_workdir
     builder.verbose = verbose
     _add_options(builder, queue, max_wallclock_seconds)
     builder.structure = structure
     builder.parameters = incar_settings
-    _add_relax(builder, relax_conf, relax_settings)
-    _add_kpoints(builder, kpoints, verbose)
-    _add_potcar(builder, potential_family, potential_mapping)
+    _add_relax(builder, relax_conf)
+    builder.kpoints = kpoints
+    builder.potential_family = potential_family
+    builder.potential_mapping = potential_mapping
     return builder
-
-# def get_vasp_builder(structure, params):
-#     workflow = WorkflowFactory('vasp.vasp')
-#     builder = workflow.get_builder()
-#     builder.code = Code.get_from_string(
-#             '{}@{}'.format(params['code'], params['computer']))
-#     builder.clean_workdir = get_data_node('bool', params['clean_workdir'])
-#     builder.structure = structure
-# 
-#     kpt = get_data_class('array.kpoints')()
-#     kpt.set_cell_from_structure(builder.structure)
-#     kpt.set_kpoints_mesh(params['kpoints']['mesh'],
-#                          offset=params['kpoints']['offset'])
-#     builder.kpoints = kpt
-# 
-#     options = AttributeDict()
-#     options.account = ''
-#     options.qos = ''
-#     options.resources = {'tot_num_mpiprocs': params['options']['tot_num_mpiprocs'],
-#                          'parallel_env': 'mpi*'}
-#     options.queue_name = params['queue']
-#     options.max_wallclock_seconds = params['options']['max_wallclock_seconds']
-#     builder.options = get_data_node('dict', dict=options)
-# 
-#     builder.parameters = get_data_node(
-#             'dict', dict=params['incar'])
-# 
-#     builder.potential_family = \
-#             get_data_node('str', params['potcar']['potential_family'])
-#     builder.potential_mapping = \
-#             get_data_node('dict', dict=params['potcar']['potential_mapping'])
-#     return builder
-# 
