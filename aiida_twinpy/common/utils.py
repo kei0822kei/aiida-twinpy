@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!usr/bin/env python
 
 from aiida.engine import calcfunction
-from aiida.orm import Dict, Float
+from aiida.orm import load_node, Dict, Float
 from aiida.orm.nodes.data import StructureData
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from twinpy.structure import get_pymatgen_structure, HexagonalClosePacked
@@ -32,4 +32,16 @@ def get_sheared_structures(structure, twinmode, grids):
         shear = StructureData(pymatgen_structure=shears[i])
         shear.label = 'shear_%03d' % (i+1)
         return_vals[shear.label] = shear
+    return return_vals
+
+@calcfunction
+def collect_relax_results(**rlx_results):
+    return_vals = {}
+    energies = []
+    for i in range(len(rlx_results)):
+        label = 'shear_%03d' % (i+1)
+        relax_label = 'rlx_' + label
+        energies.append(
+            rlx_results[relax_label]['total_energies']['energy_no_entropy'])
+    return_vals['relax_results'] = Dict(dict={'energies': energies})
     return return_vals

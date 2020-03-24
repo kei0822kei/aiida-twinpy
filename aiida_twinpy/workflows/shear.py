@@ -2,7 +2,8 @@
 
 from aiida.engine import WorkChain, if_
 from aiida.orm import Bool, Float, Str, Int, Dict, StructureData, KpointsData
-from aiida_twinpy.common.utils import get_sheared_structures
+from aiida_twinpy.common.utils import (get_sheared_structures,
+                                       collect_relax_results)
 from aiida_twinpy.common.builder import get_relax_builder
 
 class ShearWorkChain(WorkChain):
@@ -33,6 +34,7 @@ class ShearWorkChain(WorkChain):
             cls.postprocess_of_dry_run,
             ).else_(
                 cls.run_relax,
+                cls.create_energies,
                 cls.postprocess
                 )
         )
@@ -40,6 +42,7 @@ class ShearWorkChain(WorkChain):
         spec.output('parent', valid_type=StructureData, required=True)
         spec.output('strain', valid_type=Float, required=True)
         spec.output('shear_ratios', valid_type=Dict, required=True)
+        spec.output('relax_results', valid_type=Dict, required=True)
 
     def dry_run(self):
         return self.inputs.dry_run
@@ -100,12 +103,16 @@ class ShearWorkChain(WorkChain):
             future = self.submit(builder)
             self.report('{} relax workflow has submitted, pk: {}'
                     .format(label, future.pk))
-            self.to_context(**{label: future})
+            self.to_context(**{relax_label: future})
 
-    def collect_results(self):
+    def create_energies(self):
         self.report('#----------------')
         self.report('# collect results')
         self.report('#----------------')
-        energies = {}
-        for i, ratio in enumerate(self.ctx.ratios):
-            relax_label = 'rlx_' + 'shear_%03d' % (i+1)
+        rlx_results = {}
+        for i in range(len(self.ctx.ratios)):
+            label = 'shear_%03d' % (i+1)
+            relax_label = 'rlx_' + label
+            rlx_results[relax_label] = self.ctx[relax_label].outputs['misc']
+        return_vals = collect_relax_results(**rlx_results)
+        self.out('relax_results', return_vals['relax_results'])
