@@ -37,6 +37,3 @@ If you have already set up your own aiida_twinpy code using
 
 Available calculations
 ++++++++++++++++++++++
-
-.. aiida-calcjob:: DiffCalculation
-    :module: aiida_twinpy.calculations
