@@ -90,17 +90,19 @@ def get_relax_builder(computer,
                       verbose=Bool(True)
                      ):
     """
+    get relax builder
+
     Examples:
-        input sample:
         all of the input values must be wrapped by aiida datatype
-        except 'label', 'description', 'vaspcode' and 'computer'
+        except 'computer', 'label', 'description', 'queue', 'vaspcode' and
+        'max_wallclock_seconds'
 
         >>> computer = 'vega'
         >>> label = 'label of relax workflow'
         >>> description = 'description of relax workflow'
-        >>> structure = 'aiida structure object'
+        >>> structure = StructureData
         >>> incar_settings = \
-              {
+              Dict(dict={
                  'addgrid': True,
                  'ediff': 1e-6,
                  'gga': 'PS',
@@ -113,10 +115,11 @@ def get_relax_builder(computer,
                  'encut': 520
                  'ismear': 1,
                  'sigma': 0.2
-              }
+              })
         >>> relax_conf = \
-              {
+              Dict(dict={
                  'perform': True,
+                 'algo': 'rd', (or cg)
                  'positions': True,
                  'volume': True,
                  'shape': True,
@@ -129,24 +132,19 @@ def get_relax_builder(computer,
                  'convergence_shape_lengths': 0.1,
                  'convergence_volume': 0.01,
                  'force_cutoff': 0.0001,
-              }
-        # >>> kpoints = \ => kpoints object
-        #       {
-        #          'mesh': [6, 6, 6],
-        #          # 'kdensity': 0.2,
-        #          'offset': [0.5, 0.5, 0.5]
-        #       }
-        >>> potential_family = 'PBE.54'
+              })
+        >>> kpoints = KpointsData
+        >>> potential_family = Str('PBE.54')
         >>> potential_mapping = \
-              {
+              Dict(dict={
                  'Na': 'Na',
                  'Cl': 'Cl'
-              }
-        >>> queue = ''  # default
-        >>> vaspcode = 'vasp544mpi'  # default
-        >>> max_wallclock_seconds = '3600*10'  # default
-        >>> clean_workdir = True  # default
-        >>> verbose = True  # defualt
+              })
+        >>> queue = ''  # default (str object)
+        >>> vaspcode = 'vasp544mpi'  # default (str object)
+        >>> max_wallclock_seconds = 3600*10  # default
+        >>> clean_workdir = Bool(True)  # default
+        >>> verbose = Bool(True)  # defualt
     """
     workflow = WorkflowFactory('vasp.relax')
     builder = workflow.get_builder()
