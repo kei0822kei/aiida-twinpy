@@ -57,7 +57,10 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinxcontrib.contentui',
     'aiida.sphinxext',
+    'sphinx.ext.napoleon',   # to read various kinds of style of docstring
 ]
+
+napoleon_google_docstring = True
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/2.7', None),
