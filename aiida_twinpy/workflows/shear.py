@@ -8,29 +8,39 @@ from aiida_twinpy.common.builder import get_relax_builder
 class ShearWorkChain(WorkChain):
     """
     WorkChain for add shear from the original hexagonal twin mode
+
+    Args:
+        clean_workdir: (Bool) required=True
+        computer: (Str) required=True
+        dry_run: (Bool) required=True, If True,
+                 just make sheared structure, not run relax
+        grids: (Int) required=True
+        incar_settings: (Dict) required=True
+        kpoints: (KpointsData) required=True
+        potential_family: (Str) required=True
+        potential_mapping: (Dict) required=True
+        queue: (Str) required=True
+        relax_conf: (Dict) required=True
+        structure: (StructureData) required=True, hexagonal structure
+        twinmode: (Str) required=True
+        vaspcode: (Str) required=True
+
+    Examples:
+        workflow is as follows
+
+        >>> spec.outline(
+        >>>    cls.create_sheared_structures,
+        >>>    if_(cls.dry_run)(
+        >>>    cls.postprocess_of_dry_run,
+        >>>    ).else_(
+        >>>        cls.run_relax,
+        >>>        cls.postprocess
+        >>>        )
+        >>> )
     """
 
     @classmethod
     def define(cls, spec):
-        """
-        shear workflow
-
-        Args:
-            clean_workdir (Bool): required=True
-            computer (Str): required=True
-            dry_run (Bool): required=True
-            If True, just make sheared structure, not run relax
-            grids (Int): required=True
-            incar_settings (Dict): required=True
-            kpoints (KpointsData): required=True
-            potential_family (Str): required=True
-            potential_mapping (Dict): required=True
-            queue (Str): required=True
-            relax_conf (Dict): required=True
-            structure (StructureData): required=True, hexagonal structure
-            twinmode (Str): required=True
-            vaspcode (Str): required=True
-        """
         super(ShearWorkChain, cls).define(spec)
         spec.input('clean_workdir', valid_type=Bool, required=True)
         spec.input('computer', valid_type=Str, required=True)

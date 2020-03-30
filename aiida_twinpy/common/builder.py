@@ -101,38 +101,38 @@ def get_relax_builder(computer,
         >>> label = 'label of relax workflow'
         >>> description = 'description of relax workflow'
         >>> structure = StructureData
-        >>> incar_settings = \
-              Dict(dict={
-                 'addgrid': True,
-                 'ediff': 1e-6,
-                 'gga': 'PS',
-                 'ialgo': 38,
-                 'lcharg': False,
-                 'lreal': False,
-                 'lwave': False,
-                 'npar': 4,
-                 'prec': 'Accurate',
-                 'encut': 520
-                 'ismear': 1,
-                 'sigma': 0.2
-              })
-        >>> relax_conf = \
-              Dict(dict={
-                 'perform': True,
-                 'algo': 'rd', (or cg)
-                 'positions': True,
-                 'volume': True,
-                 'shape': True,
-                 'steps': 20,
-                 'convergence_absolute': False,
-                 'convergence_max_iterations': 3,
-                 'convergence_on': True,
-                 'convergence_positions': 0.01,
-                 'convergence_shape_angles': 0.1,
-                 'convergence_shape_lengths': 0.1,
-                 'convergence_volume': 0.01,
-                 'force_cutoff': 0.0001,
-              })
+        >>> incar_settings = \\
+        >>>       Dict(dict={
+        >>>          'addgrid': True,
+        >>>          'ediff': 1e-6,
+        >>>          'gga': 'PS',
+        >>>          'ialgo': 38,
+        >>>          'lcharg': False,
+        >>>          'lreal': False,
+        >>>          'lwave': False,
+        >>>          'npar': 4,
+        >>>          'prec': 'Accurate',
+        >>>          'encut': 520
+        >>>          'ismear': 1,
+        >>>          'sigma': 0.2
+        >>>       })
+        >>> relax_conf = \\
+        >>>       Dict(dict={
+        >>>          'perform': True,
+        >>>          'algo': 'rd', (or cg)
+        >>>          'positions': True,
+        >>>          'volume': True,
+        >>>          'shape': True,
+        >>>          'steps': 20,
+        >>>          'convergence_absolute': False,
+        >>>          'convergence_max_iterations': 3,
+        >>>          'convergence_on': True,
+        >>>          'convergence_positions': 0.01,
+        >>>          'convergence_shape_angles': 0.1,
+        >>>          'convergence_shape_lengths': 0.1,
+        >>>          'convergence_volume': 0.01,
+        >>>          'force_cutoff': 0.0001,
+        >>>       })
         >>> kpoints = KpointsData
         >>> potential_family = Str('PBE.54')
         >>> potential_mapping = \
