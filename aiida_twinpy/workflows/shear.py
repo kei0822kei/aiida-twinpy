@@ -18,10 +18,13 @@ class ShearWorkChain(WorkChain):
         grids: (Int) required=True
         incar_settings: (Dict) required=True
         kpoints: (KpointsData) required=True
+        phonon_settings: (Dict) required=False
+        phonon_vasp_settings: (Dict) required=False
         potential_family: (Str) required=True
         potential_mapping: (Dict) required=True
         queue: (Str) required=True
         relax_conf: (Dict) required=True
+        run_phonon: (Bool) required=True
         structure: (StructureData) required=True, hexagonal structure
         twinmode: (Str) required=True
         vaspcode: (Str) required=True
@@ -53,6 +56,7 @@ class ShearWorkChain(WorkChain):
         spec.input('potential_mapping', valid_type=Dict, required=True)
         spec.input('queue', valid_type=Str, required=True)
         spec.input('relax_conf', valid_type=Dict, required=True)
+        spec.input('run_phonon', valid_type=Bool, required=True)
         spec.input('structure', valid_type=StructureData, required=True)
         spec.input('twinmode', valid_type=Str, required=True)
         spec.input('vaspcode', valid_type=Str, required=True)
@@ -116,9 +120,10 @@ class ShearWorkChain(WorkChain):
             relax_label = 'rlx_' + label
             relax_description = relax_label + ", ratio: %f" % ratio
             builder = get_relax_builder(
-                       computer=self.inputs.computer,
                           label=relax_label,
                     description=relax_description,
+                      calc_type='shear',
+                       computer=self.inputs.computer,
                       structure=self.ctx.shears[label],
                  incar_settings=self.inputs.incar_settings,
                      relax_conf=self.inputs.relax_conf,
@@ -142,6 +147,17 @@ class ShearWorkChain(WorkChain):
         for i in range(len(self.ctx.ratios)):
             label = 'shear_%03d' % (i+1)
             relax_label = 'rlx_' + label
-            rlx_results[relax_label] = self.ctx[relax_label].outputs['misc']
+            rlx_results[relax_label] = self.ctx[relax_label].outputs.misc
         return_vals = collect_relax_results(**rlx_results)
         self.out('relax_results', return_vals['relax_results'])
+
+    def run_phonon(self):
+        self.report('#-----------')
+        self.report('# run phonon')
+        self.report('#-----------')
+        for i, ratio in enumerate(self.ctx.ratios):
+            label = 'shear_%03d' % (i+1)
+            relax_label = 'rlx_' + label
+            phonon_label = 'ph_' + label
+            phonon_description = phonon_label + ", ratio: %f" % ratio
+            structure = self.ctx[relax_label].outputs.relax__structure
