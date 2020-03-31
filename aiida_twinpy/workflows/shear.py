@@ -16,18 +16,18 @@ class ShearWorkChain(WorkChain):
         dry_run: (Bool) required=True, If True,
                  just make sheared structure, not run relax
         grids: (Int) required=True
-        incar_settings: (Dict) required=True
-        kpoints: (KpointsData) required=True
+        # incar_settings: (Dict) required=True
+        # kpoints: (KpointsData) required=True
         phonon_settings: (Dict) required=False
         phonon_vasp_settings: (Dict) required=False
-        potential_family: (Str) required=True
-        potential_mapping: (Dict) required=True
+        # potential_family: (Str) required=True
+        # potential_mapping: (Dict) required=True
         queue: (Str) required=True
         relax_conf: (Dict) required=True
         run_phonon: (Bool) required=True
         structure: (StructureData) required=True, hexagonal structure
         twinmode: (Str) required=True
-        vaspcode: (Str) required=True
+        # vasp_code: (Str) required=True
 
     Examples:
         workflow is as follows
@@ -49,17 +49,13 @@ class ShearWorkChain(WorkChain):
         spec.input('clean_workdir', valid_type=Bool, required=True)
         spec.input('computer', valid_type=Str, required=True)
         spec.input('dry_run', valid_type=Bool, required=True)
-        spec.input('grids', valid_type=Int, required=True)
-        spec.input('incar_settings', valid_type=Dict, required=True)
-        spec.input('kpoints', valid_type=KpointsData, required=True)
-        spec.input('potential_family', valid_type=Str, required=True)
-        spec.input('potential_mapping', valid_type=Dict, required=True)
+        spec.input('phonon_conf', valid_type=Dict, required=False)
+        spec.input('twin_conf', valid_type=Dict, required=False)
+        spec.input('vasp_settings', valid_type=Dict, required=False)
         spec.input('queue', valid_type=Str, required=True)
         spec.input('relax_conf', valid_type=Dict, required=True)
         spec.input('run_phonon', valid_type=Bool, required=True)
         spec.input('structure', valid_type=StructureData, required=True)
-        spec.input('twinmode', valid_type=Str, required=True)
-        spec.input('vaspcode', valid_type=Str, required=True)
 
         spec.outline(
             cls.create_sheared_structures,
@@ -99,8 +95,7 @@ class ShearWorkChain(WorkChain):
         self.report('#--------------------------')
         return_vals = get_sheared_structures(
                 self.inputs.structure,
-                self.inputs.twinmode,
-                self.inputs.grids,
+                self.inputs.twin_conf,
                 )
         self.out('parent', return_vals['parent'])
         self.out('strain', return_vals['strain'])
@@ -120,19 +115,19 @@ class ShearWorkChain(WorkChain):
             relax_label = 'rlx_' + label
             relax_description = relax_label + ", ratio: %f" % ratio
             builder = get_relax_builder(
-                          label=relax_label,
+                    label=relax_label,
                     description=relax_description,
-                      calc_type='shear',
-                       computer=self.inputs.computer,
-                      structure=self.ctx.shears[label],
-                 incar_settings=self.inputs.incar_settings,
-                     relax_conf=self.inputs.relax_conf,
-                        kpoints=self.inputs.kpoints,
-               potential_family=self.inputs.potential_family,
-              potential_mapping=self.inputs.potential_mapping,
-                          queue=self.inputs.queue,
-                  clean_workdir=self.inputs.clean_workdir,
-                        verbose=Bool(True)
+                    calc_type='shear',
+                    computer=self.inputs.computer,
+                    structure=self.ctx.shears[label],
+                    incar_settings=self.inputs.incar_settings,
+                    relax_conf=self.inputs.relax_conf,
+                    kpoints=self.inputs.kpoints,
+                    potential_family=self.inputs.potential_family,
+                    potential_mapping=self.inputs.potential_mapping,
+                    queue=self.inputs.queue,
+                    clean_workdir=self.inputs.clean_workdir,
+                    verbose=Bool(True),
                     )
             future = self.submit(builder)
             self.report('{} relax workflow has submitted, pk: {}'

@@ -42,7 +42,7 @@ class TestBuilder(unittest.TestCase):
                     'npar': 4,
                     'prec': 'Accurate',
                     'ismear': 1,
-                    'sigma': 0.2,
+                    'sigma': 0.4,
                  }
         self.relax_settings = \
                 {
@@ -134,6 +134,44 @@ class TestBuilder(unittest.TestCase):
         print("---------------------")
         print("get_relax_builder END")
         print("---------------------")
+
+    def test_get_phonon_builder(self):
+        print("")
+        print("------------------")
+        print("get_phonon_builder")
+        print("------------------")
+        label = description = "test 'get_phonon_builder'"
+        phonon_settings = \
+             Dict(dict={
+                 'distance': 0.03,
+                 'mesh': [13, 13, 13],
+                 'is_nac': False,
+                 'supercell_matrix': [2, 2, 2],
+                 'symmetry_tolerance': 1e-5
+             })
+        vasp_settings = \
+             Dict(dict={
+                 'vasp_code': 'vasp544mpi',
+                 'kpoints_mesh': [9, 9, 6],
+                 'kpoints_offset': self.kpoints['offset'],
+                 'potential_family': self.potential_family,
+                 'potential_mapping': self.potential_mapping,
+                 'incar_settings': self.incar_settings
+             })
+        builder = get_phonon_builder(
+            label=label,
+            description=description,
+            computer=Str(self.computer),
+            structure=self.structure,
+            phonon_settings=phonon_settings,
+            vasp_settings=vasp_settings,
+            queue=Str(self.queue)
+            )
+        future = submit(builder)
+        print('Running workchain with pk={}'.format(future.pk))
+        print("----------------------")
+        print("get_phonon_builder END")
+        print("----------------------")
 
 if __name__ == '__main__':
     suite = unittest.TestLoader().loadTestsFromTestCase(TestBuilder)
