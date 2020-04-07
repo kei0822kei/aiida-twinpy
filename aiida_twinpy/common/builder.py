@@ -35,7 +35,7 @@ def get_calcjob_builder(label,
         >>> calc_type = 'relax'
         >>> computer = Str('stern')
         >>> structure = StructureData
-        >>> vasp_settings = { \\
+        >>> calculator_settings = { \\
         >>>     'relax': { \\
         >>>         'vasp_code': vasp_code,
         >>>         'incar_settings': incar_settings,
@@ -99,7 +99,7 @@ def get_calcjob_builder(label,
         >>>     'convergence_volume': 0.01,
         >>>     'force_cutoff': 0.001,  # or 'energy_cutoff': 1e-4,
         >>>     }
-        >>> phonon_conf =  {'distance' = 0.03,
+        >>> phonon_conf =  {'distance': 0.03,
         >>>                 'phonopy_mesh': [13,13,13],
         >>>                 'supercell_matrix': [2,2,2],
         >>>                 'symmetry_tolerance': 1e-5,
@@ -139,9 +139,9 @@ def get_calcjob_builder(label,
         builder.remote_phonopy = Bool(True)
         ph = _get_phonon_vasp_settings(computer.value, dic[calc_type])
         builder.phonon_settings = Dict(dict=ph['ph_settings'])
-        builder.calculator_settings = Dict(dict=ph['forces_config'])
+        builder.calculator_settings = Dict(dict={'forces': ph['forces_config']})
 
-        return builder
+    return builder
 
 def _get_phonon_vasp_settings(computer, settings):
     forces_config = {'code_string': settings['vasp_code']+'@'+computer,
@@ -149,7 +149,7 @@ def _get_phonon_vasp_settings(computer, settings):
                      'kpoints_offset': settings['kpoints']['offset'],
                      'potential_family': settings['potential_family'],
                      'potential_mapping': settings['potential_mapping'],
-                     'options': _get_options(**settings['options']),
+                     'options': dict(_get_options(**settings['options'])),
                      'parser_settings': {'add_energies': True,
                                          'add_forces': True,
                                          'add_stress': True},

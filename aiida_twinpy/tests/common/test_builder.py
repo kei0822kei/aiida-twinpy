@@ -8,9 +8,8 @@ from pymatgen.core.structure import Structure
 from aiida.engine import submit
 from aiida.cmdline.utils.decorators import with_dbenv
 from aiida.orm.nodes.data import Dict, Str, StructureData, KpointsData
-from aiida_twinpy.common.builder import (get_vasp_builder,
-                                         get_relax_builder,
-                                         get_phonon_builder)
+from aiida_twinpy.common.builder import get_calcjob_builder
+from twinpy.structure import get_pymatgen_structure, HexagonalClosePacked
 
 @with_dbenv()
 def get_structuredata(pmgstructure):
@@ -24,11 +23,10 @@ def get_structuredata(pmgstructure):
 class TestBuilder(unittest.TestCase):
 
     def setUp(self):
-        pmgstructure = Structure(
-                lattice=Lattice.hexagonal(a=2.93, c=4.65),
-                coords=[[1/3, -1/3, -1/4], [-1/3, 1/3, 1/4]],
-                species=['Ti']*2)
-        self.structure = get_structuredata(pmgstructure)
+        twin_structure = HexagonalClosePacked(a=2.93, c=4.65, specie='Ti')
+        twin_structure.set_parent(twinmode='10-12')
+        parent = twin_structure.get_parent_structure()
+        self.structure = get_structuredata(get_pymatgen_structure(parent))
         self.incar_settings = \
                  {
                     'addgrid': True,
@@ -52,62 +50,23 @@ class TestBuilder(unittest.TestCase):
                    'ediffg': -1e-4
                 }
         self.computer = 'stern'
-        self.queue = ''
-        self.vaspcode = 'vasp544mpi'
+        self.queue_name = ''
+        self.vasp_code = 'vasp544mpi'
         self.potential_family = 'PBE.54'
         self.potential_mapping = {'Ti': 'Ti_pv'}
-        self.kpoints = {'mesh': [18, 18, 10],
-                        'offset': [0, 0, 0.5]}
-
-    def tearDown(self):
-        pass
-
-    def test_get_vasp_builder(self):
-        label = description = "test 'get_vasp_builder'"
-        incar_settings = deepcopy(self.incar_settings)
-        incar_settings.update(self.relax_settings)
-        kpt = KpointsData()
-        kpt.set_kpoints_mesh(self.kpoints['mesh'],
-                             offset=self.kpoints['offset'])
-        print("")
-        print("----------------")
-        print("get_vasp_builder")
-        print("----------------")
-        builder = get_vasp_builder(
-            label=label,
-            description=description,
-            computer=Str(self.computer),
-            structure=self.structure,
-            incar_settings=Dict(dict=incar_settings),
-            kpoints=kpt,
-            potential_family=Str(self.potential_family),
-            potential_mapping=Dict(dict=self.potential_mapping),
-            queue=Str(self.queue)
-            )
-        future = submit(builder)
-        print('Running workchain with pk={}'.format(future.pk))
-        print("--------------------")
-        print("get_vasp_builder END")
-        print("--------------------")
-
-    def test_get_relax_builder(self):
-        label = description = "test 'get_relax_builder'"
-        kpt = KpointsData()
-        kpt.set_kpoints_mesh(self.kpoints['mesh'],
-                             offset=self.kpoints['offset'])
-        print("")
-        print("-----------------")
-        print("get_relax_builder")
-        print("-----------------")
-        relax_conf = {
-            'perform': True,
-            'positions': True,
-            'volume': True,
-            'shape': True,
-            'algo': 'rd',  # you can also choose 'cg' (default)
+        self.kpoints_relax = {'mesh': [10, 4, 4],
+                              'offset': [0.5, 0.5, 0.5]}
+        self.kpoints_phonon = {'mesh': [5, 2, 2],
+                               'offset': [0.5, 0.5, 0.5]}
+        self.relax_conf = {
+            # set automatically => 'perform': True,
+            # set automatically => 'positions': True,
+            # set automatically => 'volume': False,
+            # set automatically => 'shape': False,
+            # 'algo': 'cg',  # you can also choose 'rd'
             'steps': 20,
             'convergence_absolute': False,
-            'convergence_max_iterations': 5,
+            'convergence_max_iterations': 2,
             'convergence_on': True,
             'convergence_positions': 0.01,
             'convergence_shape_angles': 0.1,
@@ -115,63 +74,88 @@ class TestBuilder(unittest.TestCase):
             'convergence_volume': 0.01,
             'force_cutoff': 0.001,  # or 'energy_cutoff': 1e-4,
             }
-        builder = get_relax_builder(
+        self.phonon_conf =  {
+                'distance': 0.03,
+                'phonopy_mesh': [13,13,13],
+                'supercell_matrix': [2,2,2],
+                'symmetry_tolerance': 1e-5,
+                # set automatically => 'is_nac': False
+                       }
+        self.max_wallclock_seconds = 10 * 3600
+        self.clean_workdir = True
+
+    def tearDown(self):
+        pass
+
+    def get_calculator_settings(self):
+        calculator_settings = {
+            'relax': {
+                'vasp_code': self.vasp_code,
+                'incar_settings': self.incar_settings,
+                'potential_family': self.potential_family,
+                'potential_mapping': self.potential_mapping,
+                'kpoints': self.kpoints_relax,
+                'options': {'queue_name': self.queue_name,
+                            'max_wallclock_seconds': self.max_wallclock_seconds},
+                'relax_conf': self.relax_conf,
+                'clean_workdir': self.clean_workdir,
+            },
+            'phonon': {
+                'vasp_code': self.vasp_code,
+                'incar_settings': self.incar_settings,
+                'potential_family': self.potential_family,
+                'potential_mapping': self.potential_mapping,
+                'kpoints': self.kpoints_phonon,
+                'options': {'queue_name': self.queue_name,
+                            'max_wallclock_seconds': self.max_wallclock_seconds},
+                'phonon_conf': self.phonon_conf
+            },
+        }
+        return calculator_settings
+
+    def test_get_relax_builder(self):
+        print("")
+        print("---------------------------")
+        print("get_calcjob_builder (relax)")
+        print("---------------------------")
+        label = description = "test 'get_calcjob_builder' (relax)"
+        calculator_settings = self.get_calculator_settings()
+        builder = get_calcjob_builder(
             label=label,
             description=description,
             calc_type='relax',
             computer=Str(self.computer),
-            incar_settings=Dict(dict=self.incar_settings),
-            kpoints=kpt,
-            potential_family=Str(self.potential_family),
-            potential_mapping=Dict(dict=self.potential_mapping),
-            relax_conf=Dict(dict=relax_conf),
             structure=self.structure,
-            queue=Str(self.queue)
+            calculator_settings=calculator_settings
             )
         future = submit(builder)
         print(future)
         print('Running workchain with pk={}'.format(future.pk))
-        print("---------------------")
-        print("get_relax_builder END")
-        print("---------------------")
+        print("-------------------------------")
+        print("get_calcjob_builder (relax) END")
+        print("-------------------------------")
 
     def test_get_phonon_builder(self):
         print("")
-        print("------------------")
-        print("get_phonon_builder")
-        print("------------------")
-        label = description = "test 'get_phonon_builder'"
-        phonon_settings = \
-             Dict(dict={
-                 'distance': 0.03,
-                 'mesh': [13, 13, 13],
-                 'is_nac': False,
-                 'supercell_matrix': [2, 2, 2],
-                 'symmetry_tolerance': 1e-5
-             })
-        vasp_settings = \
-             Dict(dict={
-                 'vasp_code': 'vasp544mpi',
-                 'kpoints_mesh': [9, 9, 6],
-                 'kpoints_offset': self.kpoints['offset'],
-                 'potential_family': self.potential_family,
-                 'potential_mapping': self.potential_mapping,
-                 'incar_settings': self.incar_settings
-             })
-        builder = get_phonon_builder(
+        print("----------------------------")
+        print("get_calcjob_builder (phonon)")
+        print("----------------------------")
+        label = description = "test 'get_calcjob_builder' (phonon)"
+        calculator_settings = self.get_calculator_settings()
+        builder = get_calcjob_builder(
             label=label,
             description=description,
+            calc_type='phonon',
             computer=Str(self.computer),
             structure=self.structure,
-            phonon_settings=phonon_settings,
-            vasp_settings=vasp_settings,
-            queue=Str(self.queue)
+            calculator_settings=calculator_settings
             )
         future = submit(builder)
+        print(future)
         print('Running workchain with pk={}'.format(future.pk))
-        print("----------------------")
-        print("get_phonon_builder END")
-        print("----------------------")
+        print("--------------------------------")
+        print("get_calcjob_builder (phonon) END")
+        print("--------------------------------")
 
 if __name__ == '__main__':
     suite = unittest.TestLoader().loadTestsFromTestCase(TestBuilder)
