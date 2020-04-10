@@ -4,12 +4,12 @@ from aiida.engine import calcfunction
 from aiida.orm import load_node, Dict, Float
 from aiida.orm.nodes.data import StructureData
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
-from twinpy.structure import get_pymatgen_structure, HexagonalClosePacked
+from twinpy.structure import HexagonalClosePacked
 
 @calcfunction
 def get_sheared_structures(structure, shear_conf):
     conf = dict(shear_conf)
-    pmgstructure = structure.get_pymatgen_structure()
+    pmgstructure = structure.get_pymatgen()
     a = pmgstructure.lattice.a
     c = pmgstructure.lattice.c
     specie = pmgstructure.species[0].symbol
@@ -21,10 +21,9 @@ def get_sheared_structures(structure, shear_conf):
     strain = parent.shear_strain_function
     shears = []
     for ratio in ratios:
-        shear = get_pymatgen_structure(
-                    parent.get_sheared_structure(ratio=ratio),
-                    structure_type=shear_conf['structure_type'])
-        shears.append(shear)
+        shear = parent.get_sheared_structure(ratio=ratio)
+        pmgshear = shear.get_pymatgen_structure(structure_type=shear_conf['structure_type'])
+        shears.append(pmgshear)
 
     return_vals = {}
     return_vals['parent'] = StructureData(
