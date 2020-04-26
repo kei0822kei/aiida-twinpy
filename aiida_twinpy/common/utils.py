@@ -1,43 +1,7 @@
 #!usr/bin/env python
 
 from aiida.engine import calcfunction
-from aiida.orm import load_node, Dict, Float
-from aiida.orm.nodes.data import StructureData
-from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
-from twinpy.structure import HexagonalClosePacked
-
-@calcfunction
-def get_sheared_structures(structure, shear_conf):
-    conf = dict(shear_conf)
-    pmgstructure = structure.get_pymatgen()
-    a = pmgstructure.lattice.a
-    c = pmgstructure.lattice.c
-    specie = pmgstructure.species[0].symbol
-    symmetry = SpacegroupAnalyzer(pmgstructure)
-    wyckoff = symmetry.get_symmetry_dataset()['wyckoffs'][0]
-    parent = HexagonalClosePacked(a, c, specie, wyckoff)
-    parent.set_parent(twinmode=conf['twinmode'])
-    ratios = [ i / (int(conf['grids'])-1) for i in range(int(conf['grids'])) ]
-    strain = parent.shear_strain_function
-    shears = []
-    for ratio in ratios:
-        shear = parent.get_sheared_structure(ratio=ratio)
-        pmgshear = shear.get_pymatgen_structure(structure_type=shear_conf['structure_type'])
-        shears.append(pmgshear)
-
-    return_vals = {}
-    return_vals['parent'] = StructureData(
-            pymatgen_structure=shears[0])
-    shear_settings = {'shear_ratios': ratios}
-    return_vals['shear_settings'] = Dict(dict=shear_settings)
-    return_vals['strain'] = Float(abs(strain(parent.r)))
-    for i in range(len(ratios)):
-        shear = StructureData(pymatgen_structure=shears[i])
-        shear.label = 'shear_%03d' % i
-        shear.description = 'shear_%03d' % i + \
-                ' ' + shear_conf['structure_type']
-        return_vals[shear.label] = shear
-    return return_vals
+from aiida.orm import Dict
 
 @calcfunction
 def collect_relax_results(**rlx_results):

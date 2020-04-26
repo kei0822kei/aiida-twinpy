@@ -126,9 +126,7 @@ def get_calcjob_builder(label,
         builder.verbose = Bool(True)
         builder.parameters = Dict(dict=dic[calc_type]['incar_settings'])
         builder.relax =  _get_relax_attribute(dic[calc_type]['relax_conf'])
-        builder.settings = Dict(dict={'add_energies': True,
-                                      'add_forces': True,
-                                      'add_stress': True})
+        builder.settings = Dict(dict=dic[calc_type]['parser_settings'])
         builder.kpoints = _get_kpoints(dic[calc_type]['kpoints'])
         builder.potential_family = Str(dic[calc_type]['potential_family'])
         builder.potential_mapping = Dict(dict=dic[calc_type]['potential_mapping'])

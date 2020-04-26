@@ -2,8 +2,8 @@
 
 from aiida.engine import WorkChain, if_
 from aiida.orm import Bool, Float, Str, Int, Dict, StructureData, KpointsData
-from aiida_twinpy.common.utils import (get_sheared_structures,
-                                       collect_relax_results)
+from aiida_twinpy.common.structure import get_sheared_structures
+from aiida_twinpy.common.utils import collect_relax_results
 from aiida_twinpy.common.builder import get_calcjob_builder
 
 class ShearWorkChain(WorkChain):
@@ -26,7 +26,7 @@ class ShearWorkChain(WorkChain):
         >>> shear_conf = Dict(dict={
         >>>     'twinmode': '10-12',
         >>>     'grids': 5,
-        >>>     'structure_type': 'primitive',  # or 'conventional' or ''
+        >>>     'is_primitive': True,
         >>>     })
         >>> # outline
         >>> spec.outline(
@@ -101,12 +101,13 @@ class ShearWorkChain(WorkChain):
         return_vals = get_sheared_structures(
                 self.inputs.structure,
                 self.inputs.shear_conf)
-        self.out('parent', return_vals['parent'])
         self.out('strain', return_vals['strain'])
         self.out('shear_ratios', return_vals['shear_settings'])
         self.ctx.ratios = return_vals['shear_settings']['shear_ratios']
         self.ctx.shears = {}
         for i in range(len(self.ctx.ratios)):
+            if i == 0:
+                self.out('parent', return_vals['shear_000'])
             label = "shear_%03d" % i
             self.ctx.shears[label] = return_vals[label]
 
