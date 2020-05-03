@@ -107,7 +107,9 @@ def get_calcjob_builder(label,
         >>>                }
     """
     dic = dict(calculator_settings)
-    if calc_type == 'relax':
+    if calc_type == 'vasp':
+        workflow = WorkflowFactory('vasp.vasp')
+    elif calc_type == 'relax':
         workflow = WorkflowFactory('vasp.relax')
     elif calc_type == 'phonon':
         workflow = WorkflowFactory('phonopy.phonopy')
@@ -119,19 +121,20 @@ def get_calcjob_builder(label,
     builder.options = _get_options(**dic[calc_type]['options'])
     builder.structure = structure
 
-    if calc_type == 'relax':
+    if calc_type == 'relax' or calc_type == 'vasp':
         builder.code = Code.get_from_string('{}@{}' \
             .format(dic[calc_type]['vasp_code'], computer.value))
         builder.clean_workdir = Bool(dic[calc_type]['clean_workdir'])
         builder.verbose = Bool(True)
         builder.parameters = Dict(dict=dic[calc_type]['incar_settings'])
-        builder.relax =  _get_relax_attribute(dic[calc_type]['relax_conf'])
         builder.settings = \
             Dict(dict={'parser_settings': dic[calc_type]['parser_settings']})
         builder.kpoints = _get_kpoints(dic[calc_type]['kpoints'])
         builder.potential_family = Str(dic[calc_type]['potential_family'])
         builder.potential_mapping = \
             Dict(dict=dic[calc_type]['potential_mapping'])
+        if calc_type == 'relax':
+            builder.relax = _get_relax_attribute(dic[calc_type]['relax_conf'])
 
     elif calc_type == 'phonon':
         builder.code_string = Str('{}@{}'.format('phonopy', computer.value))

@@ -61,7 +61,7 @@ class TwinBoundaryWorkChain(WorkChain):
             if_(cls.dry_run)(
                 cls.terminate_dry_run,
                 ).else_(
-                cls.run_relax,
+                cls.run_vasp,
                 cls.create_energies,
                 if_(cls.is_phonon)(
                     cls.run_phonon,
@@ -102,44 +102,44 @@ class TwinBoundaryWorkChain(WorkChain):
                 self.inputs.twinboundary_conf)
         self.out('strain', return_vals['strain'])
         self.out('twinboundary_settings', return_vals['twinboundary_settings'])
+        self.ctx.total_structures = return_vals['total_structures'].value
         self.ctx.twinboundaries = {}
-        for i in range(self.inputs.twinboundary_conf['xgrids'] * \
-                       self.inputs.twinboundary_conf['ygrids']):
+        for i in range(self.ctx.total_structures):
             label = 'twinboundary_%03d' % i
             self.ctx.twinboundaries[label] = return_vals[label]
 
-    def run_relax(self):
+    def run_vasp(self):
         self.report('#------------------------------')
-        self.report('# run relax calculations')
+        self.report('# run vasp calculations')
         self.report('#------------------------------')
-        for i, ratio in enumerate(self.ctx.ratios):
-            label = 'shear_%03d' % i
-            relax_label = 'rlx_' + label
-            relax_description = relax_label + ", ratio: %f" % ratio
+        for i in range(self.ctx.total_structures):
+            label = 'twinboundary_%03d' % i
+            vasp_label = 'vasp_' + label
+            vasp_description = 'vasp_' + label
             builder = get_calcjob_builder(
-                    label=relax_label,
-                    description=relax_description,
-                    calc_type='relax',
+                    label=vasp_label,
+                    description=vasp_description,
+                    calc_type='vasp',
                     computer=self.inputs.computer,
-                    structure=self.ctx.shears[label],
+                    structure=self.ctx.twinboundaries[label],
                     calculator_settings=self.inputs.calculator_settings
                     )
             future = self.submit(builder)
-            self.report('{} relax workflow has submitted, pk: {}'
-                    .format(relax_label, future.pk))
-            self.to_context(**{relax_label: future})
+            self.report('{} vasp calcfunction has submitted, pk: {}'
+                    .format(vasp_label, future.pk))
+            self.to_context(**{vasp_label: future})
 
     def create_energies(self):
         self.report('#----------------')
         self.report('# collect results')
         self.report('#----------------')
-        rlx_results = {}
-        for i in range(len(self.ctx.ratios)):
-            label = 'shear_%03d' % i
-            relax_label = 'rlx_' + label
-            rlx_results[relax_label] = self.ctx[relax_label].outputs.misc
-        return_vals = collect_relax_results(**rlx_results)
-        self.out('relax_results', return_vals['relax_results'])
+        vasp_results = {}
+        for i in range(len(self.ctx.total_structures)):
+            label = 'twinboundary_%03d' % i
+            vasp_label = 'vasp_' + label
+            vasp_results[vasp_label] = self.ctx[vasp_label].outputs.misc
+        return_vals = collect_relax_results(**vasp_results)
+        self.out('vasp_results', return_vals['vasp_results'])
 
     def run_phonon(self):
         self.report('#-----------')

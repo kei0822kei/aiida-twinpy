@@ -2,7 +2,7 @@
 
 import numpy as np
 from aiida.engine import calcfunction
-from aiida.orm import Dict, Float
+from aiida.orm import Dict, Float, Int
 from aiida.orm.nodes.data import StructureData
 from twinpy.structure.hexagonal import (
         is_hcp,
@@ -56,6 +56,7 @@ def get_sheared_structures(structure, shear_conf):
         shear.label = 'shear_%03d' % i
         shear.description = 'shear_%03d' % i + ' ratio: {}'.format(ratios[i])
         return_vals[shear.label] = shear
+    return_vals['total_structures'] = Int(len(ratios))
     return return_vals
 
 @calcfunction
@@ -93,4 +94,5 @@ def get_twinboundary_structures(structure, twinboundary_conf):
                     ' xshift: {} yshift: {}'.format(xshifts[i], yshifts[j])
             return_vals[twinboundary.label] = twinboundary
             count += 1
+    return_vals['total_structures'] = Int(count)
     return return_vals
