@@ -16,13 +16,13 @@ def collect_relax_results(**rlx_results):
     return return_vals
 
 @calcfunction
-def collect_vasp_results(**stc_results):
+def collect_vasp_results(**vasp_results):
     return_vals = {}
     energies = []
-    for i in range(len(stc_results)):
+    for i in range(len(vasp_results)):
         label = 'vasp_%03d' % i
         relax_label = 'vasp_' + label
         energies.append(
-            stc_results[relax_label]['total_energies']['energy_no_entropy'])
+            vasp_results[relax_label]['total_energies']['energy_no_entropy'])
     return_vals['vasp_results'] = Dict(dict={'energies': energies})
     return return_vals
