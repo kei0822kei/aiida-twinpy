@@ -126,10 +126,12 @@ def get_calcjob_builder(label,
         builder.verbose = Bool(True)
         builder.parameters = Dict(dict=dic[calc_type]['incar_settings'])
         builder.relax =  _get_relax_attribute(dic[calc_type]['relax_conf'])
-        builder.settings = Dict(dict=dic[calc_type]['parser_settings'])
+        builder.settings = \
+            Dict(dict={'parser_settings': dic[calc_type]['parser_settings']})
         builder.kpoints = _get_kpoints(dic[calc_type]['kpoints'])
         builder.potential_family = Str(dic[calc_type]['potential_family'])
-        builder.potential_mapping = Dict(dict=dic[calc_type]['potential_mapping'])
+        builder.potential_mapping = \
+            Dict(dict=dic[calc_type]['potential_mapping'])
 
     elif calc_type == 'phonon':
         builder.code_string = Str('{}@{}'.format('phonopy', computer.value))
