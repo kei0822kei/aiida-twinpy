@@ -9,13 +9,13 @@ from twinpy.structure.hexagonal import (
         get_atom_positions_from_lattice_points,
         HexagonalStructure)
 
-def get_twinpy_structure_to_structure(twinpy_structure):
-    symbols = twinpy_structure
-    scaled_positions = get_atom_positions_from_lattice_points(
-            twinpy_structure[1], twinpy_structure[2])
-    structure = StructureData(cell=twinpy_structure[0])
-    for symbol, scaled_position in zip(twinpy_structure[3], scaled_positions):
-        position = np.dot(twinpy_structure[0].T,
+def get_aiida_structure(cell):
+    """
+    cell = (lattice, scaled_positions, symbols)
+    """
+    structure = StructureData(cell=cell[0])
+    for symbol, scaled_position in zip(cell[2], cell[1]):
+        position = np.dot(cell[0].T,
                           scaled_position.reshape(3,1)).reshape(3)
         structure.append_atom(position=position, symbols=symbol)
     return structure
@@ -37,13 +37,15 @@ def get_sheared_structures(structure, shear_conf):
     conf = dict(shear_conf)
     parent = get_twinpy_structure_from_structure(structure)
     parent.set_parent(twinmode=conf['twinmode'])
+    parent.set_is_primitive(conf['is_primitive'])
     ratios = [ i / (int(conf['grids'])-1) for i in range(int(conf['grids'])) ]
     strain = parent.shear_strain_function
     shears = []
     for ratio in ratios:
         parent.set_shear_ratio(ratio)
-        parent.run(is_primitive=conf['is_primitive'])
-        shears.append(get_twinpy_structure_to_structure(parent.output_structure))
+        parent.run()
+        shears.append(get_aiida_structure(
+            parent.get_structure_for_export(get_lattice=False)))
 
     return_vals = {}
     shear_settings = {'shear_ratios': ratios}
@@ -54,4 +56,41 @@ def get_sheared_structures(structure, shear_conf):
         shear.label = 'shear_%03d' % i
         shear.description = 'shear_%03d' % i + ' ratio: {}'.format(ratios[i])
         return_vals[shear.label] = shear
+    return return_vals
+
+@calcfunction
+def get_twinboundary_structures(structure, twinboundary_conf):
+    conf = dict(twinboundary_conf)
+    parent = get_twinpy_structure_from_structure(structure)
+    parent.set_parent(twinmode=conf['twinmode'])
+    parent.set_twintype(twintype=conf['twintype'])
+    parent.set_dimension(dim=conf['dim'])
+    xshifts = [ i / int(conf['xgrids']) for i in range(int(conf['xgrids'])) ]
+    yshifts = [ i / int(conf['ygrids']) for i in range(int(conf['ygrids'])) ]
+    strain = parent.shear_strain_function
+    twinboundaries = []
+    for xshift in xshifts:
+        tb = []
+        for yshift in yshifts:
+            parent.set_xshift(xshift)
+            parent.set_yshift(yshift)
+            parent.run()
+            tb.append(get_aiida_structure(
+                parent.get_structure_for_export(get_lattice=False)))
+        twinboundaries.append(tb)
+
+    return_vals = {}
+    twinboundary_settings = {'xshifts': xshifts,
+                             'yshifts': yshifts}
+    return_vals['twinboundary_settings'] = Dict(dict=twinboundary_settings)
+    return_vals['strain'] = Float(abs(strain(parent.r)))
+    count = 0
+    for i in range(len(xshifts)):
+        for j in range(len(yshifts)):
+            twinboundary = twinboundaries[i][j]
+            twinboundary.label = 'twinboundary_%03d' % count
+            twinboundary.description = 'twinboundary_%03d' % count + \
+                    ' xshift: {} yshift: {}'.format(xshifts[i], yshifts[j])
+            return_vals[twinboundary.label] = twinboundary
+            count += 1
     return return_vals
