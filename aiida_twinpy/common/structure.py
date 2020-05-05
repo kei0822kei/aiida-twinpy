@@ -4,6 +4,8 @@ import numpy as np
 from aiida.engine import calcfunction
 from aiida.orm import Dict, Float, Int
 from aiida.orm.nodes.data import StructureData
+from aiida_twinpy.common.interfaces import get_phonon_from_aiida
+from aiida_phonopy.common.utils import phonopy_atoms_to_structure
 from twinpy.structure.hexagonal import (
         is_hcp,
         get_atom_positions_from_lattice_points,
@@ -96,4 +98,19 @@ def get_twinboundary_structures(structure, twinboundary_conf):
             return_vals[twinboundary.label] = twinboundary
             count += 1
     return_vals['total_structures'] = Int(count)
+    return return_vals
+
+@calcfunction
+def get_modulation_structures(phonon_pk, shuffle_conf):
+    phonon = get_phonon_from_aiida(phonon_pk)
+    phonon.set_modulations(dimension=phonon.supercell_matrix,
+                           phonon_modes=shuffle_conf['phonon_modes'])
+    modulations = phonon.get_modulated_supercells()
+
+    return_vals = {}
+    for i, supercell in enumerate(modulations):
+        modulation = phonopy_atoms_to_structure(supercell)
+        modulation.label = 'modulation_%03d' % (i+1)
+        modulation.description = 'modulation_%03d' % (i+1)
+        return_vals[modulation.label] = modulation
     return return_vals

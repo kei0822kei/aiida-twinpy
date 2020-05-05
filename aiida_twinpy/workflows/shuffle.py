@@ -2,13 +2,13 @@
 
 from aiida.engine import WorkChain, if_
 from aiida.orm import Bool, Float, Str, Int, Dict, StructureData, KpointsData
-from aiida_twinpy.common.structure import get_twinboundary_structures
-from aiida_twinpy.common.utils import collect_vasp_results
+from aiida_twinpy.common.structure import get_modulation_structures
+from aiida_twinpy.common.utils import collect_relax_results
 from aiida_twinpy.common.builder import get_calcjob_builder
 
-class TwinBoundaryWorkChain(WorkChain):
+class ModulationWorkChain(WorkChain):
     """
-    WorkChain for twin boundary of hexagonal metal
+    WorkChain for adding modulation and relax
 
     Args:
         calculator_settings: (Dict) for more detail,
@@ -16,9 +16,8 @@ class TwinBoundaryWorkChain(WorkChain):
         computer: (Str) required=True
         dry_run: (Bool) required=True, If True,
                  just make sheared structure, not run relax
-        run_phonon: (Bool) required=True
-        shear_conf: (Dict) shear config, for more detail see Examples
-        structure: (StructureData) required=True, hexagonal structure
+        shuffle_conf: (Dict) shuffle config, for more detail see Examples
+        phonon_pk: (int) required=True, phonon workchain pk
 
     Examples:
         workflow is as follows
@@ -46,120 +45,84 @@ class TwinBoundaryWorkChain(WorkChain):
 
     @classmethod
     def define(cls, spec):
-        super(TwinBoundaryWorkChain, cls).define(spec)
+        super(ModulationWorkChain, cls).define(spec)
         spec.input('calculator_settings', valid_type=Dict, required=True)
         spec.input('computer', valid_type=Str, required=True)
         spec.input('dry_run', valid_type=Bool, required=False,
                    default=lambda: Bool(False))
-        spec.input('is_phonon', valid_type=Bool, required=True)
-        spec.input('phonon_conf', valid_type=Dict, required=False)
-        spec.input('twinboundary_conf', valid_type=Dict, required=True)
-        spec.input('structure', valid_type=StructureData, required=True)
+        spec.input('shuffle_conf', valid_type=Dict, required=True)
+        spec.input('phonon_pk', valid_type=StructureData, required=True)
 
         spec.outline(
-            cls.create_twinboundary_structures,
+            cls.create_modulation_structures,
             if_(cls.dry_run)(
                 cls.terminate_dry_run,
                 ).else_(
-                cls.run_vasp,
+                cls.run_relax,
                 cls.create_energies,
-                if_(cls.is_phonon)(
-                    cls.run_phonon,
-                    ),
                 cls.terminate
                 )
         )
 
-        spec.output('strain', valid_type=Float, required=True)
-        spec.output('twinboundary_summary', valid_type=Dict, required=True)
+        spec.output('modulation_summary', valid_type=Dict, required=True)
         spec.output('vasp_results', valid_type=Dict, required=False)
 
     def dry_run(self):
         return self.inputs.dry_run
 
-    def is_phonon(self):
-        return self.inputs.is_phonon
-
     def terminate_dry_run(self):
         self.report('#----------------------')
         self.report('# dry run has activated')
         self.report('#----------------------')
-        self.report('terminate ShearWorkChain')
+        self.report('terminate ModulationWorkChain')
 
     def terminate(self):
-        self.report('#-----------------------------------------')
-        self.report('# ShearWorkChain has finished successfully')
-        self.report('#-----------------------------------------')
+        self.report('#-------------------------------------------')
+        self.report('# ModulationWorkChain has finished successfully')
+        self.report('#-------------------------------------------')
         self.report('all jobs have finished')
-        self.report('terminate ShearWorkChain')
+        self.report('terminate ModulationWorkChain')
 
-    def create_twinboundary_structures(self):
-        self.report('#-------------------------------')
-        self.report('# create twinboundary structures')
-        self.report('#-------------------------------')
-        return_vals = get_twinboundary_structures(
-                self.inputs.structure,
-                self.inputs.twinboundary_conf)
-        self.out('strain', return_vals['strain'])
-        self.out('twinboundary_summary', return_vals['twinboundary_summary'])
-        self.ctx.total_structures = return_vals['total_structures'].value
-        self.ctx.twinboundaries = {}
-        for i in range(self.ctx.total_structures):
-            label = 'twinboundary_%03d' % i
+    def create_modulation_structures(self):
+        self.report('#-----------------------------')
+        self.report('# create modulation structures')
+        self.report('#-----------------------------')
+        return_vals = get_modulation_structures(
+                self.inputs.phonon_pk,
+                self.inputs.shuffle_conf)
+        for i in range(len(self.inputs.shuffle_conf['phonon_modes'])):
+            label = 'modulation_%03d' % (i+1)
             self.ctx.twinboundaries[label] = return_vals[label]
 
-    def run_vasp(self):
-        self.report('#------------------------------')
-        self.report('# run vasp calculations')
-        self.report('#------------------------------')
+    def run_relax(self):
+        self.report('#-----------------------')
+        self.report('# run relax calculations')
+        self.report('#-----------------------')
         for i in range(self.ctx.total_structures):
-            label = 'twinboundary_%03d' % i
-            vasp_label = 'vasp_' + label
-            vasp_description = 'vasp_' + label
+            label = 'modulation_%03d' % (i+1)
+            relax_label = 'rlx_' + label
+            relax_description = 'rlx_' + label
             builder = get_calcjob_builder(
-                    label=vasp_label,
-                    description=vasp_description,
-                    calc_type='vasp',
+                    label=relax_label,
+                    description=relax_description,
+                    calc_type='relax',
                     computer=self.inputs.computer,
-                    structure=self.ctx.twinboundaries[label],
+                    structure=self.ctx.modulatons[label],
                     calculator_settings=self.inputs.calculator_settings
                     )
             future = self.submit(builder)
-            self.report('{} vasp calcfunction has submitted, pk: {}'
-                    .format(vasp_label, future.pk))
-            self.to_context(**{vasp_label: future})
+            self.report('{} relax calcfunction has submitted, pk: {}'
+                    .format(relax_label, future.pk))
+            self.to_context(**{relax_label: future})
 
     def create_energies(self):
         self.report('#----------------')
         self.report('# collect results')
         self.report('#----------------')
-        vasp_results = {}
-        for i in range(self.ctx.total_structures):
-            label = 'twinboundary_%03d' % i
-            vasp_label = 'vasp_' + label
-            vasp_results[vasp_label] = self.ctx[vasp_label].outputs.misc
-        return_vals = collect_vasp_results(**vasp_results)
-        self.out('vasp_results', return_vals['vasp_results'])
-
-    def run_phonon(self):
-        self.report('#-----------')
-        self.report('# run phonon')
-        self.report('#-----------')
-        for i, ratio in enumerate(self.ctx.ratios):
-            label = 'shear_%03d' % i
+        relax_results = {}
+        for i in range(len(self.inputs.shuffle_conf['phonon_modes'])):
+            label = 'modulation_%03d' % (i+1)
             relax_label = 'rlx_' + label
-            phonon_label = 'ph_' + label
-            phonon_description = phonon_label + ", ratio: %f" % ratio
-            structure = self.ctx[relax_label].outputs.relax__structure
-            builder = get_calcjob_builder(
-                    label=phonon_label,
-                    description=phonon_description,
-                    calc_type='phonon',
-                    computer=self.inputs.computer,
-                    structure=structure,
-                    calculator_settings=self.inputs.calculator_settings
-                    )
-            future = self.submit(builder)
-            self.report('{} phonopy workflow has submitted, pk: {}'
-                    .format(phonon_label, future.pk))
-            self.to_context(**{phonon_label: future})
+            relax_results[relax_label] = self.ctx[relax_label].outputs.misc
+        return_vals = collect_relax_results(**relax_results)
+        self.out('relax_results', return_vals['relax_results'])
