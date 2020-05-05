@@ -101,10 +101,11 @@ def get_twinboundary_structures(structure, twinboundary_conf):
     return return_vals
 
 @calcfunction
-def get_modulation_structures(phonon_pk, shuffle_conf):
-    phonon = get_phonon_from_aiida(phonon_pk)
+def get_modulation_structures(modulation_conf):
+    conf = modulation_conf.get_dict()
+    phonon = get_phonon_from_aiida(conf['phonon_pk'])
     phonon.set_modulations(dimension=phonon.supercell_matrix,
-                           phonon_modes=shuffle_conf['phonon_modes'])
+                           phonon_modes=conf['phonon_modes'])
     modulations = phonon.get_modulated_supercells()
 
     return_vals = {}

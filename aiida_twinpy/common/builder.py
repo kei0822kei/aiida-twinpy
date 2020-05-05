@@ -5,8 +5,34 @@ from aiida.orm import (load_node, Code, Bool, Dict,
                        Float, Int, Str, KpointsData)
 from aiida.plugins import WorkflowFactory
 from aiida import load_profile
+from aiida_twinpy.common.interfaces import get_vasp_settings_for_from_phonopy
 
 load_profile()
+
+def get_calcjob_builder_for_modulation(label,
+                                       description,
+                                       computer,
+                                       structure,
+                                       modulation_conf,
+                                       ):
+    conf = modulation_conf.get_dict()
+    incar_update = conf['incar_update_settings']
+    incar_update.update({'isif': 2})
+
+    vasp_settings = get_vasp_settings_for_from_phonopy(
+            phonon_pk=conf['phonon_pk'],
+            incar_update_settings=incar_update,
+            clean_workdir=conf['clean_workdir'],
+            parser_settings=conf['parser_settings'],
+            )
+    builder = get_calcjob_builder(label=label,
+                                  description=description,
+                                  calc_type='vasp',
+                                  computer=computer,
+                                  structure=structure,
+                                  calculator_settings={'vasp': vasp_settings},
+                                  )
+    return builder
 
 def get_calcjob_builder(label,
                         description,
@@ -106,6 +132,7 @@ def get_calcjob_builder(label,
         >>>                 # set automatically => 'is_nac': False
         >>>                }
     """
+    # not use get_dict() in the case calculator_settings is 'dict' object
     dic = dict(calculator_settings)
     if calc_type == 'vasp':
         workflow = WorkflowFactory('vasp.vasp')

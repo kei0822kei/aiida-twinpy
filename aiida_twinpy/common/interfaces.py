@@ -15,3 +15,24 @@ def get_phonon_from_aiida(phonon_pk):
     phonon.set_forces(node.outputs.force_sets.get_array('force_sets'))
     phonon.produce_force_constants()
     return phonon
+
+def get_vasp_settings_for_from_phonopy(phonon_pk,
+                                       incar_update_settings,
+                                       clean_workdir,
+                                       parser_settings):
+    node = load_node(phonon_pk)
+    calc = node.inputs.calulator_settings.get_dict()
+    vasp_settings = {
+            'vasp_code': calc['code_string'].split('@')[0],
+            'incar_settings': calc['parameters'].update(incar_update_settings),
+            'potential_family': calc['potential_family'],
+            'potential_mapping': calc['potential_mapping'],
+            'kpoints': {
+                'mesh': calc['kpoints_mesh'],
+                'offset': calc['kpoints_offset'],
+                },
+            'options': calc['forces']['options'],
+            'clean_workdir': clean_workdir,
+            'parser_settings': parser_settings,
+            }
+    return vasp_settings

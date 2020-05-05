@@ -16,7 +16,8 @@
     "entry_points": {
         "aiida.workflows": [
             "twinpy.shear = aiida_twinpy.workflows.shear: ShearWorkChain",
-            "twinpy.twinboundary = aiida_twinpy.workflows.twinboundary: TwinBoundaryWorkChain"
+            "twinpy.twinboundary = aiida_twinpy.workflows.twinboundary: TwinBoundaryWorkChain",
+            "twinpy.twinboundary = aiida_twinpy.workflows.modulation: ModulationWorkChain"
         ]
     },
     "include_package_data": true,

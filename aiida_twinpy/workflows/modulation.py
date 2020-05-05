@@ -3,8 +3,8 @@
 from aiida.engine import WorkChain, if_
 from aiida.orm import Bool, Float, Str, Int, Dict, StructureData, KpointsData
 from aiida_twinpy.common.structure import get_modulation_structures
-from aiida_twinpy.common.utils import collect_relax_results
-from aiida_twinpy.common.builder import get_calcjob_builder
+from aiida_twinpy.common.utils import collect_vasp_results
+from aiida_twinpy.common.builder import get_calcjob_builder_for_modulation
 
 class ModulationWorkChain(WorkChain):
     """
@@ -46,19 +46,17 @@ class ModulationWorkChain(WorkChain):
     @classmethod
     def define(cls, spec):
         super(ModulationWorkChain, cls).define(spec)
-        spec.input('calculator_settings', valid_type=Dict, required=True)
         spec.input('computer', valid_type=Str, required=True)
         spec.input('dry_run', valid_type=Bool, required=False,
                    default=lambda: Bool(False))
-        spec.input('shuffle_conf', valid_type=Dict, required=True)
-        spec.input('phonon_pk', valid_type=StructureData, required=True)
+        spec.input('modulation_conf', valid_type=Dict, required=True)
 
         spec.outline(
             cls.create_modulation_structures,
             if_(cls.dry_run)(
                 cls.terminate_dry_run,
                 ).else_(
-                cls.run_relax,
+                cls.run_vasp,
                 cls.create_energies,
                 cls.terminate
                 )
@@ -88,41 +86,40 @@ class ModulationWorkChain(WorkChain):
         self.report('# create modulation structures')
         self.report('#-----------------------------')
         return_vals = get_modulation_structures(
-                self.inputs.phonon_pk,
-                self.inputs.shuffle_conf)
-        for i in range(len(self.inputs.shuffle_conf['phonon_modes'])):
+                self.inputs.modulation_conf)
+        self.ctx.modulations = {}
+        for i in range(len(self.inputs.conf['phonon_modes'])):
             label = 'modulation_%03d' % (i+1)
-            self.ctx.twinboundaries[label] = return_vals[label]
+            self.ctx.modulations[label] = return_vals[label]
 
-    def run_relax(self):
+    def run_vasp(self):
         self.report('#-----------------------')
-        self.report('# run relax calculations')
+        self.report('# run vasp calculations')
         self.report('#-----------------------')
-        for i in range(self.ctx.total_structures):
+        for i in range(len(self.inputs.modulation_conf['phonon_modes'])):
             label = 'modulation_%03d' % (i+1)
-            relax_label = 'rlx_' + label
-            relax_description = 'rlx_' + label
-            builder = get_calcjob_builder(
-                    label=relax_label,
-                    description=relax_description,
-                    calc_type='relax',
+            vasp_label = 'vasp_' + label
+            vasp_description = 'vasp_' + label
+            builder = get_calcjob_builder_for_modulation(
+                    label=vasp_label,
+                    description=vasp_description,
                     computer=self.inputs.computer,
                     structure=self.ctx.modulatons[label],
-                    calculator_settings=self.inputs.calculator_settings
+                    modulation_conf=self.inputs.modulation_conf,
                     )
             future = self.submit(builder)
-            self.report('{} relax calcfunction has submitted, pk: {}'
-                    .format(relax_label, future.pk))
-            self.to_context(**{relax_label: future})
+            self.report('{} vasp calcfunction has submitted, pk: {}'
+                    .format(vasp_label, future.pk))
+            self.to_context(**{vasp_label: future})
 
     def create_energies(self):
         self.report('#----------------')
         self.report('# collect results')
         self.report('#----------------')
-        relax_results = {}
+        vasp_results = {}
         for i in range(len(self.inputs.shuffle_conf['phonon_modes'])):
             label = 'modulation_%03d' % (i+1)
-            relax_label = 'rlx_' + label
-            relax_results[relax_label] = self.ctx[relax_label].outputs.misc
-        return_vals = collect_relax_results(**relax_results)
-        self.out('relax_results', return_vals['relax_results'])
+            vasp_label = 'vasp_' + label
+            vasp_results[vasp_label] = self.ctx[vasp_label].outputs.misc
+        return_vals = collect_vasp_results(**vasp_results)
+        self.out('vasp_results', return_vals['vasp_results'])
