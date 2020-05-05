@@ -20,9 +20,9 @@ def collect_vasp_results(**vasp_results):
     return_vals = {}
     energies = []
     for i in range(len(vasp_results)):
-        label = 'vasp_%03d' % i
-        relax_label = 'vasp_' + label
+        label = 'twinboundary_%03d' % i
+        vasp_label = 'vasp_' + label
         energies.append(
-            vasp_results[relax_label]['total_energies']['energy_no_entropy'])
+            vasp_results[vasp_label]['total_energies']['energy_no_entropy'])
     return_vals['vasp_results'] = Dict(dict={'energies': energies})
     return return_vals

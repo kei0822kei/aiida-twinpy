@@ -70,6 +70,7 @@ def get_twinboundary_structures(structure, twinboundary_conf):
     yshifts = [ i / int(conf['ygrids']) for i in range(int(conf['ygrids'])) ]
     strain = parent.shear_strain_function
     twinboundaries = []
+    shifts = []
     for xshift in xshifts:
         tb = []
         for yshift in yshifts:
@@ -78,12 +79,12 @@ def get_twinboundary_structures(structure, twinboundary_conf):
             parent.run()
             tb.append(get_aiida_structure(
                 parent.get_structure_for_export(get_lattice=False)))
+            shifts.append([xshift, yshift])
         twinboundaries.append(tb)
 
     return_vals = {}
-    twinboundary_settings = {'xshifts': xshifts,
-                             'yshifts': yshifts}
-    return_vals['twinboundary_settings'] = Dict(dict=twinboundary_settings)
+    twinboundary_summary = {'shifts': shifts, 'natoms': parent.natoms}
+    return_vals['twinboundary_summary'] = Dict(dict=twinboundary_summary)
     return_vals['strain'] = Float(abs(strain(parent.r)))
     count = 0
     for i in range(len(xshifts)):
