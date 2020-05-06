@@ -24,6 +24,7 @@ def get_calcjob_builder_for_modulation(label,
             incar_update_settings=incar_update,
             clean_workdir=conf['clean_workdir'],
             parser_settings=conf['parser_settings'],
+            queue=modulation_conf['queue']
             )
     builder = get_calcjob_builder(label=label,
                                   description=description,
@@ -195,7 +196,7 @@ def _get_kpoints(kpoints):
     return kpt
 
 def _get_options(queue_name='',
-                 max_wallclock_seconds=10 * 3600):
+                 max_wallclock_seconds=100 * 3600):
     options = AttributeDict()
     options.account = ''
     options.qos = ''

@@ -88,7 +88,7 @@ class ModulationWorkChain(WorkChain):
         return_vals = get_modulation_structures(
                 self.inputs.modulation_conf)
         self.ctx.modulations = {}
-        for i in range(len(self.inputs.conf['phonon_modes'])):
+        for i in range(len(self.inputs.modulation_conf['phonon_modes'])):
             label = 'modulation_%03d' % (i+1)
             self.ctx.modulations[label] = return_vals[label]
 
@@ -104,7 +104,7 @@ class ModulationWorkChain(WorkChain):
                     label=vasp_label,
                     description=vasp_description,
                     computer=self.inputs.computer,
-                    structure=self.ctx.modulatons[label],
+                    structure=self.ctx.modulations[label],
                     modulation_conf=self.inputs.modulation_conf,
                     )
             future = self.submit(builder)

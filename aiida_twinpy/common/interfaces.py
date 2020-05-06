@@ -19,20 +19,26 @@ def get_phonon_from_aiida(phonon_pk):
 def get_vasp_settings_for_from_phonopy(phonon_pk,
                                        incar_update_settings,
                                        clean_workdir,
-                                       parser_settings):
+                                       parser_settings,
+                                       queue):
     node = load_node(phonon_pk)
-    calc = node.inputs.calulator_settings.get_dict()
+    calc = node.inputs.calculator_settings.get_dict()['forces']
+    incar_settings = calc['parameters']
+    incar_settings.update(incar_update_settings)
     vasp_settings = {
             'vasp_code': calc['code_string'].split('@')[0],
-            'incar_settings': calc['parameters'].update(incar_update_settings),
+            'incar_settings': incar_settings,
             'potential_family': calc['potential_family'],
             'potential_mapping': calc['potential_mapping'],
             'kpoints': {
                 'mesh': calc['kpoints_mesh'],
                 'offset': calc['kpoints_offset'],
                 },
-            'options': calc['forces']['options'],
+            'options': {'queue_name': queue,
+                        'max_wallclock_seconds': calc['options']['max_wallclock_seconds']},
             'clean_workdir': clean_workdir,
             'parser_settings': parser_settings,
             }
+    if 'gga' not in vasp_settings['incar_settings'].keys():
+        raise ValueError("hoge")
     return vasp_settings

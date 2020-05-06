@@ -22,10 +22,14 @@ def get_aiida_structure(cell):
         structure.append_atom(position=position, symbols=symbol)
     return structure
 
-def get_twinpy_structure_from_structure(structure):
+def get_structure_from_aiida(structure):
     lattice = np.array(structure.cell)
     positions = np.array([site.position for site in structure.sites])
     symbols = [site.kind_name for site in structure.sites]
+    return (lattice, positions, symbols)
+
+def get_twinpy_structure_from_structure(structure):
+    lattice, positions, symbols = get_structure_from_aiida(structure)
     wyckoff = is_hcp(lattice=lattice,
                      positions=positions,
                      symbols=symbols,
@@ -59,6 +63,29 @@ def get_sheared_structures(structure, shear_conf):
         shear.description = 'shear_%03d' % i + ' ratio: {}'.format(ratios[i])
         return_vals[shear.label] = shear
     return_vals['total_structures'] = Int(len(ratios))
+    return return_vals
+
+@calcfunction
+def get_twinboundary_sheared_structures(structure, twinboundary_shear_conf):
+    conf = dict(twinboundary_shear_conf)
+    lattice, positions, symbols = get_structure_from_aiida(structure)
+    ratios = twinboundary_shear_conf['ratios']
+    shears = []
+    for ratio in ratios:
+        shear_mat = np.eye(3)
+        shear_mat[1,2] = ratio
+        shear_lat = np.dot(lattice.T, shear_mat).T
+        scaled_positions = np.dot(np.linalg.inv(lattice.T), positions.T).T
+        shears.append(get_aiida_structure(cell=(shear_lat, scaled_positions, symbols)))
+
+    return_vals = {}
+    shear_settings = {'shear_ratios': ratios}
+    return_vals['shear_settings'] = Dict(dict=shear_settings)
+    for i in range(len(ratios)):
+        shear = shears[i]
+        shear.label = 'twinboundaryshear_%03d' % i
+        shear.description = 'twinboundaryshear_%03d' % i + ' ratio: {}'.format(ratios[i])
+        return_vals[shear.label] = shear
     return return_vals
 
 @calcfunction
