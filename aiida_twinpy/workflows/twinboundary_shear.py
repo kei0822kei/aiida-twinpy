@@ -3,7 +3,7 @@
 from aiida.engine import WorkChain, if_
 from aiida.orm import Bool, Float, Str, Int, Dict, StructureData, KpointsData
 from aiida_twinpy.common.structure import get_twinboundary_sheared_structures
-from aiida_twinpy.common.utils import collect_relax_results
+from aiida_twinpy.common.utils import collect_twinboundary_shear_results
 from aiida_twinpy.common.builder import get_calcjob_builder
 
 class TwinBoundaryShearWorkChain(WorkChain):
@@ -134,7 +134,7 @@ class TwinBoundaryShearWorkChain(WorkChain):
             label = 'twinboundaryshear_%03d' % i
             relax_label = 'rlx_' + label
             rlx_results[relax_label] = self.ctx[relax_label].outputs.misc
-        return_vals = collect_relax_results(**rlx_results)
+        return_vals = collect_twinboundary_shear_results(**rlx_results)
         self.out('relax_results', return_vals['relax_results'])
 
     def run_phonon(self):

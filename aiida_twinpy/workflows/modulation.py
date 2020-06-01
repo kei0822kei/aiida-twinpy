@@ -3,7 +3,7 @@
 from aiida.engine import WorkChain, if_
 from aiida.orm import Bool, Float, Str, Int, Dict, StructureData, KpointsData
 from aiida_twinpy.common.structure import get_modulation_structures
-from aiida_twinpy.common.utils import collect_vasp_results
+from aiida_twinpy.common.utils import collect_modulation_results
 from aiida_twinpy.common.builder import get_calcjob_builder_for_modulation
 
 class ModulationWorkChain(WorkChain):
@@ -62,7 +62,7 @@ class ModulationWorkChain(WorkChain):
                 )
         )
 
-        spec.output('modulation_summary', valid_type=Dict, required=True)
+        spec.output('frequencies', valid_type=Dict, required=True)
         spec.output('vasp_results', valid_type=Dict, required=False)
 
     def dry_run(self):
@@ -88,6 +88,7 @@ class ModulationWorkChain(WorkChain):
         return_vals = get_modulation_structures(
                 self.inputs.modulation_conf)
         self.ctx.modulations = {}
+        self.out('frequencies', return_vals['frequencies'])
         for i in range(len(self.inputs.modulation_conf['phonon_modes'])):
             label = 'modulation_%03d' % (i+1)
             self.ctx.modulations[label] = return_vals[label]
@@ -117,9 +118,9 @@ class ModulationWorkChain(WorkChain):
         self.report('# collect results')
         self.report('#----------------')
         vasp_results = {}
-        for i in range(len(self.inputs.shuffle_conf['phonon_modes'])):
+        for i in range(len(self.inputs.modulation_conf['phonon_modes'])):
             label = 'modulation_%03d' % (i+1)
             vasp_label = 'vasp_' + label
             vasp_results[vasp_label] = self.ctx[vasp_label].outputs.misc
-        return_vals = collect_vasp_results(**vasp_results)
+        return_vals = collect_modulation_results(**vasp_results)
         self.out('vasp_results', return_vals['vasp_results'])

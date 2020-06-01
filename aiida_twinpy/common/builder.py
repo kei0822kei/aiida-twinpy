@@ -24,7 +24,8 @@ def get_calcjob_builder_for_modulation(label,
             incar_update_settings=incar_update,
             clean_workdir=conf['clean_workdir'],
             parser_settings=conf['parser_settings'],
-            queue=modulation_conf['queue']
+            queue=modulation_conf['queue'],
+            kpoints=modulation_conf['kpoints']
             )
     builder = get_calcjob_builder(label=label,
                                   description=description,
@@ -167,7 +168,7 @@ def get_calcjob_builder(label,
     elif calc_type == 'phonon':
         builder.code_string = Str('{}@{}'.format('phonopy', computer.value))
         builder.run_phonopy = Bool(True)
-        builder.remote_phonopy = Bool(True)
+        builder.remote_phonopy = Bool(False)
         ph = _get_phonon_vasp_settings(computer.value, dic[calc_type])
         builder.phonon_settings = Dict(dict=ph['ph_settings'])
         builder.calculator_settings = Dict(dict={'forces': ph['forces_config']})

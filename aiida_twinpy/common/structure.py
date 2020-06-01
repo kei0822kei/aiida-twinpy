@@ -131,11 +131,20 @@ def get_twinboundary_structures(structure, twinboundary_conf):
 def get_modulation_structures(modulation_conf):
     conf = modulation_conf.get_dict()
     phonon = get_phonon_from_aiida(conf['phonon_pk'])
-    phonon.set_modulations(dimension=phonon.supercell_matrix,
+    freq = []
+    for phonon_mode in conf['phonon_modes']:
+        freq.append(phonon.get_frequencies(phonon_mode[0]).tolist())
+
+    unitcell = phonon.get_unitcell().cell
+    primitive = phonon.get_primitive().cell
+    u2p = np.round(np.dot(np.linalg.inv(primitive.T), unitcell.T)).astype(int)
+    dimension = np.dot(u2p, conf['dimension'])
+    phonon.set_modulations(dimension=dimension,
                            phonon_modes=conf['phonon_modes'])
     modulations = phonon.get_modulated_supercells()
 
     return_vals = {}
+    return_vals['frequencies'] = Dict(dict={'frequencies': freq})
     for i, supercell in enumerate(modulations):
         modulation = phonopy_atoms_to_structure(supercell)
         modulation.label = 'modulation_%03d' % (i+1)
