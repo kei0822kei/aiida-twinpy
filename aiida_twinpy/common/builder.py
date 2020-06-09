@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import warnings
 from aiida.common.extendeddicts import AttributeDict
 from aiida.orm import (load_node, Code, Bool, Dict,
                        Float, Int, Str, KpointsData)
@@ -215,8 +216,9 @@ def _get_relax_attribute(relax_conf):
                'shape': False}
     for key in updates.keys():
         if key in relax_conf.keys():
-            raise Warning("key {} in 'relax_conf' is overwritten to {}"\
-                    .format(key, updates[key]))
+            if relax_conf[key] is not updates[key]:
+                warnings.warn("key {} in 'relax_conf' is overwritten to {}"\
+                              .format(key, updates[key]))
     relax_conf.update(updates)
     relax_attribute = AttributeDict()
     keys = relax_conf.keys()
