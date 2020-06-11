@@ -115,9 +115,9 @@ class ShearWorkChain(WorkChain):
             self.ctx.shears[label] = return_vals[label]
 
     def run_relax(self):
-        self.report('#------------------------------')
+        self.report('#-----------------------')
         self.report('# run relax calculations')
-        self.report('#------------------------------')
+        self.report('#-----------------------')
         for i, ratio in enumerate(self.ctx.ratios):
             label = 'shear_%03d' % i
             relax_label = 'rlx_' + label

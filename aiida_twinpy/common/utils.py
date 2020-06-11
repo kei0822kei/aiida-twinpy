@@ -39,7 +39,6 @@ def collect_twinboundary_shear_results(**rlx_results):
     return_vals['relax_results'] = Dict(dict={'energies': energies})
     return return_vals
 
-
 @calcfunction
 def collect_modulation_results(**vasp_results):
     return_vals = {}
@@ -52,3 +51,20 @@ def collect_modulation_results(**vasp_results):
     return_vals['vasp_results'] = Dict(dict={'energies': energies})
     return return_vals
 
+@calcfunction
+def reset_isif(calculator_settings, isif):
+    settings = calculator_settings.get_dict()
+    if isif.value == 7:
+        settings['relax']['relax_conf']['volume'] = True
+        settings['relax']['relax_conf']['positions'] = False
+        settings['relax']['relax_conf']['shape'] = False
+    elif isif.value == 2:
+        settings['relax']['relax_conf']['volume'] = False
+        settings['relax']['relax_conf']['positions'] = True
+        settings['relax']['relax_conf']['shape'] = False
+    else:
+        raise RuntimeError("isif: {} is not supported".format(isif.value))
+
+    return_vals = {}
+    return_vals['calculator_settings'] = Dict(dict=settings)
+    return return_vals

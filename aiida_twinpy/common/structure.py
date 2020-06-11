@@ -66,40 +66,61 @@ def get_shear_structures(structure, shear_conf):
     return return_vals
 
 @calcfunction
-def get_twinboundary_shear_structures(structure, twinboundary_shear_conf):
-    conf = dict(twinboundary_shear_conf)
+def get_twinboundary_structure(structure, twinboundary_conf):
+    conf = dict(twinboundary_conf)
     cell = get_cell_from_aiida(structure,
                                get_scaled_positions=True)
-    tb_structures = []
-    for shear_strain_ratio in conf['shear_strain_ratios']:
-        twinpy = get_twinpy_from_cell(cell=cell,
-                                      twinmode=conf['twinmode'])
-        twinpy.set_twinboundaty(twintype=conf['twintype'],
-                                xshift=conf['xshift'],
-                                yshift=conf['yshift'],
-                                dim=conf['dim'],
-                                )
-        twinpy.set_twinbou(xshift=conf['xshift'],
-                         yshift=conf['yshift'],
-                         dim=conf['dim'],
-                         shear_strain_ratio=shear_strain_ratio,
-                         make_tb_flat=conf['make_tb_flat'])
-        ph_structure = twinpy.get_twinboundary_phonopy_structure(
-                structure_type=conf['structure_type'])
-        tb_structures.append(phonopy_atoms_to_structure(ph_structure))
+    twinpy = get_twinpy_from_cell(cell=cell,
+                                  twinmode=conf['twinmode'])
+    twinpy.set_twinboundary(twintype=conf['twintype'],
+                            xshift=conf['xshift'],
+                            yshift=conf['yshift'],
+                            dim=conf['dim'],
+                            shear_strain_ratio=conf['shear_strain_ratio'],
+                            make_tb_flat=conf['make_tb_flat'],
+                            )
+    ph_structure = twinpy.get_twinboundary_phonopy_structure(
+            structure_type=conf['structure_type'])
 
-    return_vals = {}
-    twinboundary_settings = {'shear_ratios': conf['shear_strain_ratios']}
-    return_vals['twinboundary_settings'] = Dict(dict=twinboundary_settings)
-    return_vals['gamma'] = Float(twinpy.get_shear().get_gamma())
-    for i, ratio in enumerate(conf['shear_strain_ratios']):
-        tb_structure = tb_structures[i]
-        tb_structure.label = 'twinboundary_%03d' % i
-        tb_structure.description = 'twinboundary_%03d' % i \
-                                          + ' ratio: {}'.format(ratio)
-        return_vals[tb_structure.label] = tb_structure
-    return_vals['total_structures'] = Int(len(conf['shear_strain_ratios']))
-    return return_vals
+    structure = phonopy_atoms_to_structure(ph_structure)
+
+    return structure
+
+# @calcfunction
+# def get_twinboundary_shear_structures(structure, twinboundary_shear_conf):
+#     conf = dict(twinboundary_shear_conf)
+#     cell = get_cell_from_aiida(structure,
+#                                get_scaled_positions=True)
+#     tb_structures = []
+#     for shear_strain_ratio in conf['shear_strain_ratios']:
+#         twinpy = get_twinpy_from_cell(cell=cell,
+#                                       twinmode=conf['twinmode'])
+#         twinpy.set_twinboundaty(twintype=conf['twintype'],
+#                                 xshift=conf['xshift'],
+#                                 yshift=conf['yshift'],
+#                                 dim=conf['dim'],
+#                                 )
+#         twinpy.set_twinbou(xshift=conf['xshift'],
+#                          yshift=conf['yshift'],
+#                          dim=conf['dim'],
+#                          shear_strain_ratio=shear_strain_ratio,
+#                          make_tb_flat=conf['make_tb_flat'])
+#         ph_structure = twinpy.get_twinboundary_phonopy_structure(
+#                 structure_type=conf['structure_type'])
+#         tb_structures.append(phonopy_atoms_to_structure(ph_structure))
+# 
+#     return_vals = {}
+#     twinboundary_settings = {'shear_ratios': conf['shear_strain_ratios']}
+#     return_vals['twinboundary_settings'] = Dict(dict=twinboundary_settings)
+#     return_vals['gamma'] = Float(twinpy.get_shear().get_gamma())
+#     for i, ratio in enumerate(conf['shear_strain_ratios']):
+#         tb_structure = tb_structures[i]
+#         tb_structure.label = 'twinboundary_%03d' % i
+#         tb_structure.description = 'twinboundary_%03d' % i \
+#                                           + ' ratio: {}'.format(ratio)
+#         return_vals[tb_structure.label] = tb_structure
+#     return_vals['total_structures'] = Int(len(conf['shear_strain_ratios']))
+#     return return_vals
 
 # @calcfunction
 # def get_twinboundary_shear_structures(structure, twinboundary_shear_conf):

@@ -17,6 +17,7 @@
         "aiida.workflows": [
             "twinpy.shear = aiida_twinpy.workflows.shear: ShearWorkChain",
             "twinpy.twinboundary = aiida_twinpy.workflows.twinboundary: TwinBoundaryWorkChain",
+            "twinpy.twinboundary_relax = aiida_twinpy.workflows.twinboundary_relax: TwinBoundaryRelaxWorkChain",
             "twinpy.twinboundary_shear = aiida_twinpy.workflows.twinboundary_shear: TwinBoundaryShearWorkChain",
             "twinpy.modulation = aiida_twinpy.workflows.modulation: ModulationWorkChain"
         ]
