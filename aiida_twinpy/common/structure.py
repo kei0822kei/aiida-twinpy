@@ -51,7 +51,7 @@ def get_cell_from_aiida(structure:StructureData,
 
 @calcfunction
 def get_shear_structures(structure:StructureData,
-                         shear_conf:Union[Dict, dict]):
+                         shear_conf:Dict):
     """
     Get shear structure.
 

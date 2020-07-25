@@ -6,31 +6,14 @@ Deals with kpoints.
 """
 
 import numpy as np
-from decimal import Decimal, ROUND_HALF_UP
+from aiida.orm import Dict, KpointsData, StructureData
+from aiida.engine import calcfunction
 from twinpy.lattice.lattice import Lattice
-
-
-def round_off(x:float):
-    """
-    Round off for input value 'x'.
-
-    Args:
-        x (float): some value
-
-    Returns:
-        int: rouned off value
-
-    Examples:
-        >>> round_off(4.5)
-            5
-        >>> round_off(-4.5)
-            -5
-    """
-    return int(Decimal(str(x)).quantize(Decimal('0'), rounding=ROUND_HALF_UP))
+from aiida_twinpy.common.structure import get_cell_from_aiida
 
 
 def get_mesh_from_interval(lattice:np.array,
-                           interval:float):
+                           interval:float) -> dict:
     """
     Get the nunmber of grid from lattice.
 
@@ -39,7 +22,7 @@ def get_mesh_from_interval(lattice:np.array,
         interval (float): grid interval
 
     Returns:
-        dict: containing abc norms, mesh and actual intervals
+        dict: containing abc norms, mesh
 
     Note:
         mesh * interval => abc
@@ -50,13 +33,12 @@ def get_mesh_from_interval(lattice:np.array,
     mesh_float = abc / interval
     mesh = np.int64(np.round(mesh_float))
     fixed_mesh = np.where(mesh==0, 1, mesh)
-    intervals = abc / fixed_mesh
-    return {'abc': abc, 'mesh': fixed_mesh, 'intervals': intervals}
+    return {'abc': abc, 'mesh': fixed_mesh}
 
 
 def get_mesh_offset_from_direct_lattice(lattice:np.array,
                                         interval:float,
-                                        include_two_pi:bool=True):
+                                        include_two_pi:bool=True) -> dict:
     """
     Get kpoints mesh and offset from input lattice and interval.
 
@@ -66,7 +48,7 @@ def get_mesh_offset_from_direct_lattice(lattice:np.array,
         include_two_pi (bool): if True, include 2 * pi
 
     Returns:
-        dict: containing abc norms, mesh, offset and actual intervals
+        dict: containing abc norms, mesh, offset
 
     Note:
         If the angles of input lattice is (90., 90., 120.),
@@ -91,14 +73,14 @@ def get_mesh_offset_from_direct_lattice(lattice:np.array,
     # is hexagonal standardized cell
     mesh = kpts['mesh']
     recip_a, recip_b, _ = recip_lat.abc
-    is_hexagonal_std = (np.allclose(recip_lat.angles, (90., 90., 60.),
+    is_hexagonal = (np.allclose(recip_lat.angles, (90., 90., 60.),
+                                rtol=0., atol=1e-5)
+                    and np.allclose(recip_a, recip_b,
                                     rtol=0., atol=1e-5)
-                        and np.allclose(recip_a, recip_b,
-                                        rtol=0., atol=1e-5)
-                        )
+                    )
 
     # fix mesh from get_mesh_from_interval
-    if is_hexagonal_std:
+    if is_hexagonal:
         offset = (0., 0., 0.5)
         # If True, get 1, if False get 0.
         condition = lambda x: int(x%2==0)
@@ -116,6 +98,38 @@ def get_mesh_offset_from_direct_lattice(lattice:np.array,
     kpts['mesh'] = fixed_mesh
     kpts['offset'] = offset
 
-    kpts['is_hexagonal_standardized'] = is_hexagonal_std
+    kpts['is_hexagonal'] = is_hexagonal
 
     return kpts
+
+
+@calcfunction
+def get_kpoints_data_from_structure(structure:StructureData,
+                                    dic:Dict) -> KpointsData:
+    """
+    Get aiida KpointsData from aiida StructureData.
+
+    Args:
+        structure (StructureData): aiida StructureData
+        dic (Dict): aiida Dict containing necessary information
+
+    Returns:
+        KpointsData: aiida KpointsData
+
+    Note:
+    """
+    cell = get_cell_from_aiida(structure)
+    kpts_info = dic.get_dict()
+    kpts = get_mesh_offset_from_direct_lattice(
+             lattice=cell[0],
+             interval=kptss_info['interval'],
+             include_two_pi=kpts_info['include_two_pi'],
+             )
+    aiida_kpts = KpointsData()
+    aiida_kpts.set_kpoints_mesh(mesh=kpts['mesh'],
+                                offset=kpts['offset'])
+
+    return_vals = {
+            'kpoints': aiida_kpts,
+            'kpoints_dict': Dict(dict=kpts),
+            }
