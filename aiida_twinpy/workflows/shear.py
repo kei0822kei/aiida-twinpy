@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 from aiida.engine import WorkChain, if_
-from aiida.orm import Bool, Float, Str, Int, Dict, StructureData, KpointsData
+from aiida.orm import Bool, Float, Str, Dict, StructureData, KpointsData
 from aiida_twinpy.common.structure import get_shear_structures
 from aiida_twinpy.common.utils import collect_relax_results
 from aiida_twinpy.common.builder import get_calcjob_builder
+
 
 class ShearWorkChain(WorkChain):
     """
@@ -20,31 +21,11 @@ class ShearWorkChain(WorkChain):
         shear_conf: (Dict) shear config, for more detail see Examples
         structure: (StructureData) required=True, hexagonal structure
 
-    Examples:
-        workflow is as follows
+    Note:
+        For more detail about shear_conf,
+        see aiida_twinpy.common.structure.get_shear_structures.
 
-        >>> shear_conf = Dict(dict={
-        >>>     'twinmode': '10-12',
-        >>>     'dim': [1,1,1],
-        >>>     'xshift': 0.,
-        >>>     'yshift': 0.,
-        >>>     'grids': 5,
-        >>>     'structure_type': 'primitive',
-        >>>     })
-        >>> # outline
-        >>> spec.outline(
-        >>>     cls.create_shear_structures,
-        >>>     if_(cls.dry_run)(
-        >>>         cls.terminate_dry_run,
-        >>>         ).else_(
-        >>>         cls.run_relax,
-        >>>         cls.create_energies,
-        >>>         ),
-        >>>     if_(cls.is_phonon)(
-        >>>         cls.run_phonon,
-        >>>         ),
-        >>>     cls.terminate
-        >>> )
+    Todo:
     """
 
     @classmethod

@@ -1,20 +1,25 @@
 #!usr/bin/env python
 
 import numpy as np
+from typing import Union
 from aiida.engine import calcfunction
 from aiida.orm import Dict, Float, Int
 from aiida.orm.nodes.data import StructureData
 from aiida_twinpy.common.interfaces import get_phonon_from_aiida
 from aiida_phonopy.common.utils import phonopy_atoms_to_structure
 from twinpy.api_twinpy import get_twinpy_from_cell
-from twinpy.structure.base import (
-        is_hcp,
-        get_atom_positions_from_lattice_points,
-        )
+from twinpy.structure.base import get_atom_positions_from_lattice_points
 
-def get_aiida_structure(cell):
+
+def get_aiida_structure(cell:tuple):
     """
-    cell = (lattice, scaled_positions, symbols)
+    Get aiida structure from input cell.
+
+    Args:
+        cell (tuple): cell = (lattice, scaled_positions, symbols)
+
+    Returns:
+        StructureData: aiida structure data
     """
     structure = StructureData(cell=cell[0])
     for symbol, scaled_position in zip(cell[2], cell[1]):
@@ -23,9 +28,18 @@ def get_aiida_structure(cell):
         structure.append_atom(position=position, symbols=symbol)
     return structure
 
-def get_cell_from_aiida(structure, get_scaled_positions=True):
+
+def get_cell_from_aiida(structure:StructureData,
+                        get_scaled_positions:bool=True):
     """
-    cell = (lattice, scaled_positions, symbols)
+    Get cell from input aiida structure.
+
+    Args:
+        structure (StructureData): aiida structure data
+        get_scaled_positions (bool): if True, return scaled positions
+
+    Returns:
+        tuple: cell
     """
     lattice = np.array(structure.cell)
     positions = np.array([site.position for site in structure.sites])
@@ -34,36 +48,99 @@ def get_cell_from_aiida(structure, get_scaled_positions=True):
     symbols = [site.kind_name for site in structure.sites]
     return (lattice, positions, symbols)
 
+
 @calcfunction
-def get_shear_structures(structure, shear_conf):
+def get_shear_structures(structure:StructureData,
+                         shear_conf:Union[Dict, dict]):
+    """
+    Get shear structure.
+
+    Args:
+        structure (StructureData): aiida structure data
+        shear_conf (Dict): shear config
+
+    Examples:
+        Example of shear_conf
+
+    Note:
+        When structure_type in_shear_conf is 'primitive' or 'conventional',
+        create primitive or conventional standardized structure.
+        The other case use 'base' structure which is original
+        Twinpy output structure.
+
+        >>> shear_conf = Dict(dict={
+        >>>     'twinmode': '10-12',
+        >>>     'dim': [1,1,1],
+        >>>     'xshift': 0.,
+        >>>     'yshift': 0.,
+        >>>     'grids': 5,
+        >>>     'is_primitive': True,
+        >>>     'structure_type': 'conventional',
+        >>>     })
+    """
+    get_lattice = False
+    move_atoms_into_unitcell = True
+    no_idealize = False
+    symprec = 1e-5
+    no_sort = True
+    get_sort_list = False
+
     conf = dict(shear_conf)
-    cell = get_cell_from_aiida(structure,
+    cell = get_cell_from_aiida(structure=structure,
                                get_scaled_positions=True)
     ratios = [ i / (int(conf['grids'])-1) for i in range(int(conf['grids'])) ]
+
     shear_structures = []
+    vasp_input_structures = []
     for ratio in ratios:
         twinpy = get_twinpy_from_cell(cell=cell,
                                       twinmode=conf['twinmode'])
         twinpy.set_shear(xshift=conf['xshift'],
                          yshift=conf['yshift'],
                          dim=conf['dim'],
-                         shear_strain_ratio=ratio)
-        ph_structure = twinpy.get_shear_phonopy_structure(
-                structure_type=conf['structure_type'])
-        shear_structures.append(phonopy_atoms_to_structure(ph_structure))
+                         shear_strain_ratio=ratio,
+                         is_primitive=conf['is_primitive'])
+        std = twinpy.get_shear_standardize(
+                get_lattice=get_lattice,
+                move_atoms_into_unitcell=move_atoms_into_unitcell)
+
+        structure_type = shear_conf['structure_type']
+        if structure_type in ['primitive', 'conventional']:
+            if structure_type == 'primitive':
+                to_primitive = True
+            else:
+                to_primitive = False
+            shear_cell = std.get_standardized_cell(
+                    to_primitive=to_primitive,
+                    no_idealize=no_idealize,
+                    symprec=symprec,
+                    no_sort=no_sort,
+                    get_sort_list=get_sort_list,
+                    )
+        else:
+            shear_cell = std.cell
+
+        shear_structures.append(get_aiida_structure(cell=std.cell))
+        vasp_input_structures.append(get_aiida_structure(cell=shear_cell))
 
     return_vals = {}
     shear_settings = {'shear_ratios': ratios}
     return_vals['shear_settings'] = Dict(dict=shear_settings)
     return_vals['gamma'] = Float(twinpy.get_shear().get_gamma())
     for i in range(len(ratios)):
-        shear_structure = shear_structures[i]
-        shear_structure.label = 'shear_%03d' % i
-        shear_structure.description = 'shear_%03d' % i \
+        vasp_input_structure = shear_structures[i]
+        vasp_input_structure.label = 'shear_%03d' % i
+        vasp_input_structure.description = 'shear_%03d' % i \
                                           + ' ratio: {}'.format(ratios[i])
+        shear_structure = vasp_input_structures[i]
+        shear_structure.label = 'shear_orig_%03d' % i
+        shear_structure.description = 'shear_orig_%03d' % i \
+                                          + ' ratio: {}'.format(ratios[i])
+        return_vals[vasp_input_structure.label] = vasp_input_structure
         return_vals[shear_structure.label] = shear_structure
     return_vals['total_structures'] = Int(len(ratios))
     return return_vals
+
 
 @calcfunction
 def get_twinboundary_structure(structure, twinboundary_conf):

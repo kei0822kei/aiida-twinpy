@@ -63,9 +63,6 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
             cls.terminate,
         )
 
-        spec.output('strain', valid_type=Float, required=True)
-        spec.output('twinboundary_summary', valid_type=Dict, required=True)
-        spec.output('vasp_results', valid_type=Dict, required=False)
         # spec.exit_code(100, 'ERROR_ISIF_IS_NOT_TWO',
         #                message='initial isif settings is not two')
 
