@@ -4,6 +4,7 @@ from aiida.orm import load_node
 from aiida_phonopy.common.utils import phonopy_atoms_from_structure
 from phonopy import Phonopy
 
+
 def get_phonon_from_aiida(phonon_pk):
     node = load_node(phonon_pk)
     unitcell = phonopy_atoms_from_structure(node.inputs.structure)
@@ -15,6 +16,7 @@ def get_phonon_from_aiida(phonon_pk):
     phonon.set_forces(node.outputs.force_sets.get_array('force_sets'))
     phonon.produce_force_constants()
     return phonon
+
 
 def get_vasp_settings_for_from_phonopy(phonon_pk,
                                        incar_update_settings,

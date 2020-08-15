@@ -203,7 +203,6 @@ def _get_options(queue_name='',
     options.account = ''
     options.qos = ''
     options.resources = {'tot_num_mpiprocs': 16,
-                         'num_machines': 1,
                          'parallel_env': 'mpi*'}
     options.queue_name = queue_name
     options.max_wallclock_seconds = max_wallclock_seconds

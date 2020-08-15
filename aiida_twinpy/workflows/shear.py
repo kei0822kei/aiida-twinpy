@@ -79,6 +79,9 @@ class ShearWorkChain(WorkChain):
         self.report('terminate ShearWorkChain')
 
     def create_shear_structures(self):
+        """
+        Create shear structures.
+        """
         self.report('#------------------------')
         self.report('# create shear structures')
         self.report('#------------------------')
