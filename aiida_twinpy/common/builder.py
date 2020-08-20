@@ -209,10 +209,11 @@ def _get_options(queue_name='',
     return Dict(dict=options)
 
 def _get_relax_attribute(relax_conf):
-    updates = {'perform': True,
-               'positions': True,
-               'volume': False,
-               'shape': False}
+    # updates = {'perform': True,
+    #            'positions': True,
+    #            'volume': False,
+    #            'shape': False}
+    updates = {'perform': True}
     for key in updates.keys():
         if key in relax_conf.keys():
             if relax_conf[key] is not updates[key]:

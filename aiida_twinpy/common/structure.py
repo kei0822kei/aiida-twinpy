@@ -128,7 +128,7 @@ def get_twinboundary_structure(structure, twinboundary_conf):
         twinboundary_conf (Dict): shear config
 
     Examples:
-        Example of twinboundary_conf
+        Example of twinboundary_conf.
 
         >>> twinboundary_conf = Dict(dict={
         >>>     'twinmode': '10-12',
@@ -157,10 +157,20 @@ def get_twinboundary_structure(structure, twinboundary_conf):
     no_sort = True
     get_sort_list = False
 
+    parameters = {
+        'get_lattice': get_lattice,
+        'move_atoms_into_unitcell': move_atoms_into_unitcell,
+        'to_primitive': to_primitive,
+        'no_idealize': no_idealize,
+        'symprec': symprec,
+        'no_sort': no_sort,
+        'get_sort_list': get_sort_list,
+        }
+    parameters.update(twinboundary_conf.get_dict())
+
     conf = dict(twinboundary_conf)
     cell = get_cell_from_aiida(structure=structure,
                                get_scaled_positions=True)
-
     twinpy = get_twinpy_from_cell(cell=cell,
                                   twinmode=conf['twinmode'])
     twinpy.set_twinboundary(twintype=conf['twintype'],
@@ -181,15 +191,17 @@ def get_twinboundary_structure(structure, twinboundary_conf):
             no_sort=no_sort,
             get_sort_list=get_sort_list,
             )
-
-    return_vals = {
-            # 'gamma': Float(twinpy._twinboundary.get_gamma()),
-            }
-
     twinboundary_structure = get_aiida_structure(cell=std.cell)
     twinboundary_structure.label = 'twinboundary_orig'
+    twinboundary_structure.description = \
+            'twinboundary not standardized original structure'
     vasp_input_structure = get_aiida_structure(cell=twinboundary_std_cell)
     vasp_input_structure.label = 'twinboundary'
+    vasp_input_structure.description = \
+            'twinboundary standardized structure'
+
+    return_vals = {}
+    return_vals['parameters'] = Dict(dict=parameters)
     return_vals[twinboundary_structure.label] = twinboundary_structure
     return_vals[vasp_input_structure.label] = vasp_input_structure
 
