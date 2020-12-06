@@ -9,7 +9,7 @@ from aiida_twinpy.common.interfaces import get_phonon_from_aiida
 from aiida_phonopy.common.utils import phonopy_atoms_to_structure
 from twinpy.api_twinpy import get_twinpy_from_cell
 from twinpy.structure.base import get_atom_positions_from_lattice_points
-from twinpy.interfaces.aiida import get_aiida_structure, get_cell_from_aiida
+from twinpy.interfaces.aiida.base import get_aiida_structure, get_cell_from_aiida
 
 
 @calcfunction

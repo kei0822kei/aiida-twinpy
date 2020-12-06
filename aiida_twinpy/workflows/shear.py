@@ -5,6 +5,7 @@ from aiida.orm import Bool, Float, Str, Dict, StructureData, KpointsData
 from aiida_twinpy.common.structure import get_shear_structures
 from aiida_twinpy.common.utils import collect_relax_results
 from aiida_twinpy.common.builder import get_calcjob_builder
+from aiida_twinpy.common.kpoints import fix_kpoints
 
 
 class ShearWorkChain(WorkChain):
@@ -39,6 +40,10 @@ class ShearWorkChain(WorkChain):
         spec.input('phonon_conf', valid_type=Dict, required=False)
         spec.input('shear_conf', valid_type=Dict, required=True)
         spec.input('structure', valid_type=StructureData, required=True)
+        spec.input('use_kpoints_interval', valid_type=Bool, required=False,
+                   default=lambda: Bool(False))
+        spec.input('kpoints_interval', valid_type=Float, required=False,
+                   default=lambda: Float(0.15))
 
         spec.outline(
             cls.create_shear_structures,
@@ -102,17 +107,26 @@ class ShearWorkChain(WorkChain):
         self.report('#-----------------------')
         self.report('# run relax calculations')
         self.report('#-----------------------')
+        self.ctx.calculator_settings = self.inputs.calculator_settings
         for i, ratio in enumerate(self.ctx.ratios):
             label = 'shear_%03d' % i
             relax_label = 'rlx_' + label
             relax_description = relax_label + ", ratio: %f" % ratio
+            if self.inputs.use_kpoints_interval:
+                return_vals = fix_kpoints(
+                        calculator_settings=self.ctx.calculator_settings,
+                        structure=self.ctx.shears[label],
+                        interval=self.inputs.kpoints_interval,
+                        is_phonon=Bool(False))
+                self.ctx.calculator_settings = \
+                        return_vals['calculator_settings']
             builder = get_calcjob_builder(
                     label=relax_label,
                     description=relax_description,
                     calc_type='relax',
                     computer=self.inputs.computer,
                     structure=self.ctx.shears[label],
-                    calculator_settings=self.inputs.calculator_settings
+                    calculator_settings=self.ctx.calculator_settings
                     )
             future = self.submit(builder)
             self.report('{} relax workflow has submitted, pk: {}'
@@ -135,19 +149,28 @@ class ShearWorkChain(WorkChain):
         self.report('#-----------')
         self.report('# run phonon')
         self.report('#-----------')
+        self.ctx.calculator_settings = self.inputs.calculator_settings
         for i, ratio in enumerate(self.ctx.ratios):
             label = 'shear_%03d' % i
             relax_label = 'rlx_' + label
             phonon_label = 'ph_' + label
             phonon_description = phonon_label + ", ratio: %f" % ratio
             structure = self.ctx[relax_label].outputs.relax__structure
+            if self.inputs.use_kpoints_interval:
+                return_vals = fix_kpoints(
+                        calculator_settings=self.ctx.calculator_settings,
+                        structure=structure,
+                        interval=self.inputs.kpoints_interval,
+                        is_phonon=Bool(True))
+                self.ctx.calculator_settings = \
+                        return_vals['calculator_settings']
             builder = get_calcjob_builder(
                     label=phonon_label,
                     description=phonon_description,
                     calc_type='phonon',
                     computer=self.inputs.computer,
                     structure=structure,
-                    calculator_settings=self.inputs.calculator_settings
+                    calculator_settings=self.ctx.calculator_settings
                     )
             future = self.submit(builder)
             self.report('{} phonopy workflow has submitted, pk: {}'
