@@ -2,15 +2,17 @@
 Calculations provided by aiida_twinpy.
 
 Register calculations via the "aiida.calculations" entry point in setup.json.
+
+FUTURE EDIT.
 """
-from __future__ import absolute_import
-
-import six
-
-from aiida.common import datastructures
-from aiida.engine import CalcJob
-from aiida.orm import SinglefileData
-from aiida.plugins import DataFactory
+# from __future__ import absolute_import
+# 
+# import six
+# 
+# from aiida.common import datastructures
+# from aiida.engine import CalcJob
+# from aiida.orm import SinglefileData
+# from aiida.plugins import DataFactory
 
 # DiffParameters = DataFactory('twinpy')
 # 

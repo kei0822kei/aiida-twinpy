@@ -15,14 +15,17 @@
     "version": "0.1.0a0",
     "entry_points": {
         "aiida.workflows": [
-            "twinpy.shear = aiida_twinpy.workflows.shear: ShearWorkChain"
+            "twinpy.shear = aiida_twinpy.workflows.shear: ShearWorkChain",
+            "twinpy.twinboundary = aiida_twinpy.workflows.twinboundary: TwinBoundaryWorkChain",
+            "twinpy.twinboundary_relax = aiida_twinpy.workflows.twinboundary_relax: TwinBoundaryRelaxWorkChain",
+            "twinpy.twinboundary_shear = aiida_twinpy.workflows.twinboundary_shear: TwinBoundaryShearWorkChain",
+            "twinpy.modulation = aiida_twinpy.workflows.modulation: ModulationWorkChain"
         ]
     },
     "include_package_data": true,
     "setup_requires": ["reentry"],
     "reentry_register": true,
     "install_requires": [
-        "twinpy>=1.0.0",
         "aiida-core>=1.0.0,<2.0.0",
         "six",
         "voluptuous"

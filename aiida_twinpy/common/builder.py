@@ -1,12 +1,84 @@
 #!/usr/bin/env python
 
+import warnings
 from aiida.common.extendeddicts import AttributeDict
 from aiida.orm import (load_node, Code, Bool, Dict,
                        Float, Int, Str, KpointsData)
 from aiida.plugins import WorkflowFactory
 from aiida import load_profile
+from aiida_twinpy.common.interfaces import get_vasp_settings_for_from_phonopy
+from twinpy.interfaces.aiida.vasp import AiidaRelaxWorkChain
+from twinpy.interfaces.aiida.twinboundary \
+        import AiidaTwinBoudnaryRelaxWorkChain
 
 load_profile()
+
+
+def get_calcjob_builder_for_modulation(label,
+                                       description,
+                                       computer,
+                                       structure,
+                                       modulation_conf,
+                                       ):
+    conf = modulation_conf.get_dict()
+    incar_update = conf['incar_update_settings']
+    incar_update.update({'isif': 2})
+
+    vasp_settings = get_vasp_settings_for_from_phonopy(
+            phonon_pk=conf['phonon_pk'],
+            incar_update_settings=incar_update,
+            clean_workdir=conf['clean_workdir'],
+            parser_settings=conf['parser_settings'],
+            queue=modulation_conf['queue'],
+            kpoints=modulation_conf['kpoints']
+            )
+    builder = get_calcjob_builder(label=label,
+                                  description=description,
+                                  calc_type='vasp',
+                                  computer=computer,
+                                  structure=structure,
+                                  calculator_settings={'vasp': vasp_settings},
+                                  )
+    return builder
+
+
+def get_calcjob_builder_for_twinboundary_shear(label,
+                                               description,
+                                               computer,
+                                               structure,
+                                               kpoints,
+                                               twinboundary_shear_conf):
+    conf = dict(twinboundary_shear_conf)
+    aiida_twinboundary = AiidaTwinBoudnaryRelaxWorkChain(
+            load_node(conf['twinboundary_relax_pk']))
+    aiida_relax = \
+            AiidaRelaxWorkChain(load_node(conf['additional_relax_pks'][-1]))
+
+    if conf['additional_relax_pks'] is None:
+        rlx_pk = aiida_twinboundary.get_pks()['relax_pk']
+    else:
+        rlx_pk = conf['additional_relax_pks'][-1]
+    rlx_node = load_node(rlx_pk)
+    builder = rlx_node.get_builder_restart()
+    builder.options = _get_options(**twinboundary_shear_conf['options'])
+    builder.kpoints = kpoints
+    builder.structure = structure
+    builder.metadata.label = label
+    builder.metadata.description = description
+
+    # fix relax conf
+    builder.relax.convergence_max_iterations = Int(40)
+    builder.relax.positions = Bool(True)
+    builder.relax.shape = Bool(False)
+    builder.relax.volume = Bool(False)
+    builder.relax.convergence_positions = Float(1e-6)
+    builder.relax.force_cutoff = \
+            Float(aiida_relax.get_max_force())
+
+    # fix queue
+
+    return builder
+
 
 def get_calcjob_builder(label,
                         description,
@@ -43,7 +115,8 @@ def get_calcjob_builder(label,
         >>>         'potential_mapping': potential_mapping,
         >>>         'kpoints': kpoints,
         >>>         'options': {'queue_name': queue_name,
-        >>>                     'max_wallclock_seconds': max_wallclock_seconds},
+        >>>                     'max_wallclock_seconds':
+        >>>                         max_wallclock_seconds},
         >>>         'relax_conf': relax_conf,
         >>>         'clean_workdir': clean_workdir,
         >>>     },
@@ -54,7 +127,8 @@ def get_calcjob_builder(label,
         >>>         'potential_mapping': potential_mapping,
         >>>         'kpoints': kpoints,
         >>>         'options': {'queue_name': queue_name,
-        >>>                     'max_wallclock_seconds': max_wallclock_seconds},
+        >>>                     'max_wallclock_seconds':
+        >>>                         max_wallclock_seconds},
         >>>         'phonon_conf': phonon_conf
         >>>     },
         >>> }
@@ -106,8 +180,11 @@ def get_calcjob_builder(label,
         >>>                 # set automatically => 'is_nac': False
         >>>                }
     """
+    # not use get_dict() in the case calculator_settings is 'dict' object
     dic = dict(calculator_settings)
-    if calc_type == 'relax':
+    if calc_type == 'vasp':
+        workflow = WorkflowFactory('vasp.vasp')
+    elif calc_type == 'relax':
         workflow = WorkflowFactory('vasp.relax')
     elif calc_type == 'phonon':
         workflow = WorkflowFactory('phonopy.phonopy')
@@ -119,29 +196,32 @@ def get_calcjob_builder(label,
     builder.options = _get_options(**dic[calc_type]['options'])
     builder.structure = structure
 
-    if calc_type == 'relax':
-        builder.code = Code.get_from_string('{}@{}' \
-            .format(dic[calc_type]['vasp_code'], computer.value))
+    if calc_type == 'relax' or calc_type == 'vasp':
+        builder.code = Code.get_from_string('{}@{}'.format(
+            dic[calc_type]['vasp_code'], computer.value))
         builder.clean_workdir = Bool(dic[calc_type]['clean_workdir'])
         builder.verbose = Bool(True)
         builder.parameters = Dict(dict=dic[calc_type]['incar_settings'])
-        builder.relax =  _get_relax_attribute(dic[calc_type]['relax_conf'])
-        builder.settings = Dict(dict={'add_energies': True,
-                                      'add_forces': True,
-                                      'add_stress': True})
+        builder.settings = \
+            Dict(dict={'parser_settings': dic[calc_type]['parser_settings']})
         builder.kpoints = _get_kpoints(dic[calc_type]['kpoints'])
         builder.potential_family = Str(dic[calc_type]['potential_family'])
-        builder.potential_mapping = Dict(dict=dic[calc_type]['potential_mapping'])
+        builder.potential_mapping = \
+            Dict(dict=dic[calc_type]['potential_mapping'])
+        if calc_type == 'relax':
+            builder.relax = _get_relax_attribute(dic[calc_type]['relax_conf'])
 
     elif calc_type == 'phonon':
         builder.code_string = Str('{}@{}'.format('phonopy', computer.value))
         builder.run_phonopy = Bool(True)
-        builder.remote_phonopy = Bool(True)
+        builder.remote_phonopy = Bool(False)
         ph = _get_phonon_vasp_settings(computer.value, dic[calc_type])
         builder.phonon_settings = Dict(dict=ph['ph_settings'])
-        builder.calculator_settings = Dict(dict={'forces': ph['forces_config']})
+        builder.calculator_settings = \
+                Dict(dict={'forces': ph['forces_config']})
 
     return builder
+
 
 def _get_phonon_vasp_settings(computer, settings):
     forces_config = {'code_string': settings['vasp_code']+'@'+computer,
@@ -159,32 +239,36 @@ def _get_phonon_vasp_settings(computer, settings):
     return {'forces_config': forces_config,
             'ph_settings': ph_settings}
 
+
 def _get_kpoints(kpoints):
     kpt = KpointsData()
     kpt.set_kpoints_mesh(kpoints['mesh'], offset=kpoints['offset'])
     return kpt
 
+
 def _get_options(queue_name='',
-                 max_wallclock_seconds=10 * 3600):
+                 max_wallclock_seconds=100 * 3600):
     options = AttributeDict()
     options.account = ''
     options.qos = ''
     options.resources = {'tot_num_mpiprocs': 16,
-                         'num_machines': 1,
                          'parallel_env': 'mpi*'}
     options.queue_name = queue_name
     options.max_wallclock_seconds = max_wallclock_seconds
     return Dict(dict=options)
 
+
 def _get_relax_attribute(relax_conf):
-    updates = {'perform': True,
-               'positions': True,
-               'volume': False,
-               'shape': False}
+    # updates = {'perform': True,
+    #            'positions': True,
+    #            'volume': False,
+    #            'shape': False}
+    updates = {'perform': True}
     for key in updates.keys():
         if key in relax_conf.keys():
-            raise Warning("key {} in 'relax_conf' is overwritten to {}"\
-                    .format(key, updates[key]))
+            if relax_conf[key] is not updates[key]:
+                warnings.warn("key {} in 'relax_conf' is overwritten to {}"
+                              .format(key, updates[key]))
     relax_conf.update(updates)
     relax_attribute = AttributeDict()
     keys = relax_conf.keys()
