@@ -1,15 +1,9 @@
 #!usr/bin/env python
 
 import numpy as np
-from typing import Union
 from aiida.engine import calcfunction
-from aiida.orm import Dict
-from aiida.orm.nodes.data import StructureData
-from aiida_twinpy.common.interfaces import get_phonon_from_aiida
-from aiida_phonopy.common.utils import phonopy_atoms_to_structure
-from twinpy.api_twinpy import get_twinpy_from_cell
-from twinpy.structure.base import get_atom_positions_from_lattice_points
-from twinpy.interfaces.aiida.base import get_aiida_structure, get_cell_from_aiida
+from aiida.orm import Float, Dict, KpointsData
+from twinpy.interfaces.aiida.base import get_cell_from_aiida
 from twinpy.common.kpoints import get_mesh_offset_from_direct_lattice
 
 
@@ -38,3 +32,35 @@ def fix_kpoints(calculator_settings,
     return_vals = {}
     return_vals['calculator_settings'] = Dict(dict=calc_settings)
     return return_vals
+
+
+@calcfunction
+def get_kpoints_interval(structure, kpoints):
+    """
+    Get kpoints interval.
+    """
+    cell = get_cell_from_aiida(structure)
+    kpoints_info = get_mesh_offset_from_direct_lattice(
+            lattice=cell[0],
+            mesh=kpoints.get_kpoints_mesh()[0],
+            )
+    ave_interval = np.average(kpoints_info['intervals'])
+
+    return_vals = {}
+    return_vals['interval'] = Float(ave_interval)
+    return return_vals
+
+
+@calcfunction
+def get_kpoints_from_interval(structure, interval):
+    """
+    Get kpoints from interval.
+    """
+    cell = get_cell_from_aiida(structure)
+    kpt_info = get_mesh_offset_from_direct_lattice(
+            lattice=cell[0], interval=interval.value)
+    mesh = kpt_info['mesh']
+    offset = kpt_info['offset']
+    kpt = KpointsData()
+    kpt.set_kpoints_mesh(mesh, offset)
+    return kpt

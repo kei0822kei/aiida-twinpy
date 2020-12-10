@@ -7,8 +7,12 @@ from aiida.orm import (load_node, Code, Bool, Dict,
 from aiida.plugins import WorkflowFactory
 from aiida import load_profile
 from aiida_twinpy.common.interfaces import get_vasp_settings_for_from_phonopy
+from twinpy.interfaces.aiida.vasp import AiidaRelaxWorkChain
+from twinpy.interfaces.aiida.twinboundary \
+        import AiidaTwinBoudnaryRelaxWorkChain
 
 load_profile()
+
 
 def get_calcjob_builder_for_modulation(label,
                                        description,
@@ -36,6 +40,47 @@ def get_calcjob_builder_for_modulation(label,
                                   calculator_settings={'vasp': vasp_settings},
                                   )
     return builder
+
+
+def get_calcjob_builder_for_twinboundary_shear(label,
+                                               description,
+                                               computer,
+                                               structure,
+                                               kpoints,
+                                               twinboundary_shear_conf):
+    conf = dict(twinboundary_shear_conf)
+    aiida_twinboundary = AiidaTwinBoudnaryRelaxWorkChain(
+            load_node(conf['twinboundary_relax_pk']))
+    aiida_relax = \
+            AiidaRelaxWorkChain(load_node(conf['additional_relax_pks'][-1]))
+
+    if conf['additional_relax_pks'] is None:
+        rlx_pk = aiida_twinboundary.get_pks()['relax_pk']
+    else:
+        rlx_pk = conf['additional_relax_pks'][-1]
+    rlx_node = load_node(rlx_pk)
+    builder = rlx_node.get_builder_restart()
+    builder.options = _get_options(**twinboundary_shear_conf['options'])
+    builder.kpoints = kpoints
+    builder.structure = structure
+    builder.metadata.label = label
+    builder.metadata.description = description
+    builder.code = Code.get_from_string(
+                       '{}@{}'.format('vasp544mpi', computer.value))
+
+    # fix relax conf
+    builder.relax.convergence_max_iterations = Int(40)
+    builder.relax.positions = Bool(True)
+    builder.relax.shape = Bool(False)
+    builder.relax.volume = Bool(False)
+    builder.relax.convergence_positions = Float(1e-5)
+    builder.relax.force_cutoff = \
+            Float(aiida_relax.get_max_force())
+
+    # fix queue
+
+    return builder
+
 
 def get_calcjob_builder(label,
                         description,
@@ -72,7 +117,8 @@ def get_calcjob_builder(label,
         >>>         'potential_mapping': potential_mapping,
         >>>         'kpoints': kpoints,
         >>>         'options': {'queue_name': queue_name,
-        >>>                     'max_wallclock_seconds': max_wallclock_seconds},
+        >>>                     'max_wallclock_seconds':
+        >>>                         max_wallclock_seconds},
         >>>         'relax_conf': relax_conf,
         >>>         'clean_workdir': clean_workdir,
         >>>     },
@@ -83,7 +129,8 @@ def get_calcjob_builder(label,
         >>>         'potential_mapping': potential_mapping,
         >>>         'kpoints': kpoints,
         >>>         'options': {'queue_name': queue_name,
-        >>>                     'max_wallclock_seconds': max_wallclock_seconds},
+        >>>                     'max_wallclock_seconds':
+        >>>                         max_wallclock_seconds},
         >>>         'phonon_conf': phonon_conf
         >>>     },
         >>> }
@@ -152,8 +199,8 @@ def get_calcjob_builder(label,
     builder.structure = structure
 
     if calc_type == 'relax' or calc_type == 'vasp':
-        builder.code = Code.get_from_string('{}@{}' \
-            .format(dic[calc_type]['vasp_code'], computer.value))
+        builder.code = Code.get_from_string('{}@{}'.format(
+            dic[calc_type]['vasp_code'], computer.value))
         builder.clean_workdir = Bool(dic[calc_type]['clean_workdir'])
         builder.verbose = Bool(True)
         builder.parameters = Dict(dict=dic[calc_type]['incar_settings'])
@@ -172,9 +219,11 @@ def get_calcjob_builder(label,
         builder.remote_phonopy = Bool(False)
         ph = _get_phonon_vasp_settings(computer.value, dic[calc_type])
         builder.phonon_settings = Dict(dict=ph['ph_settings'])
-        builder.calculator_settings = Dict(dict={'forces': ph['forces_config']})
+        builder.calculator_settings = \
+                Dict(dict={'forces': ph['forces_config']})
 
     return builder
+
 
 def _get_phonon_vasp_settings(computer, settings):
     forces_config = {'code_string': settings['vasp_code']+'@'+computer,
@@ -192,10 +241,12 @@ def _get_phonon_vasp_settings(computer, settings):
     return {'forces_config': forces_config,
             'ph_settings': ph_settings}
 
+
 def _get_kpoints(kpoints):
     kpt = KpointsData()
     kpt.set_kpoints_mesh(kpoints['mesh'], offset=kpoints['offset'])
     return kpt
+
 
 def _get_options(queue_name='',
                  max_wallclock_seconds=100 * 3600):
@@ -208,6 +259,7 @@ def _get_options(queue_name='',
     options.max_wallclock_seconds = max_wallclock_seconds
     return Dict(dict=options)
 
+
 def _get_relax_attribute(relax_conf):
     # updates = {'perform': True,
     #            'positions': True,
@@ -217,7 +269,7 @@ def _get_relax_attribute(relax_conf):
     for key in updates.keys():
         if key in relax_conf.keys():
             if relax_conf[key] is not updates[key]:
-                warnings.warn("key {} in 'relax_conf' is overwritten to {}"\
+                warnings.warn("key {} in 'relax_conf' is overwritten to {}"
                               .format(key, updates[key]))
     relax_conf.update(updates)
     relax_attribute = AttributeDict()

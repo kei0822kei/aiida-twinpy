@@ -67,39 +67,49 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
         """
         Terminate workflow.
         """
-        self.report('#-----------------------------------------------------')
-        self.report('# TwinBoundaryRelaxWorkChain has finished successfully')
-        self.report('#-----------------------------------------------------')
-        self.report('all jobs have finished')
-        self.report('terminate ShearWorkChain')
+        self.report("#------------------------------------------------------")
+        self.report("# TwinBoundaryRelaxWorkChain has finished successfully.")
+        self.report("#------------------------------------------------------")
+        self.report("All jobs have finished.")
+        self.report("Terminate ShearWorkChain.")
 
     def check_initial_isif_is_two(self):
         """
         Check initial ISIF setting is 2, which allows to move only
         atom positions.
         """
+        self.report("#-------------------------")
+        self.report("# Check initial ISIF is 2.")
+        self.report("#-------------------------")
         rlx_settings = \
             self.inputs.calculator_settings.get_dict()['relax']['relax_conf']
         run_mode = [rlx_settings['positions'],
                     rlx_settings['volume'],
                     rlx_settings['shape']]
-        if run_mode != [True, False, False]:
-            # raise ValueError("isif is not 2")
-            warnings.warn("isif is not 2")   # not working, Future edited
+        if run_mode == [True, False, False]:
+            self.report("OK.")
+        else:
+            self.report("+++++++++++++++++++++++++")
+            self.report("(WARNING): ISIF IS NOT 2.")
+            self.report("+++++++++++++++++++++++++")
 
     def create_twinboudnary_structure(self):
         """
         Create twinboundary structure for relax.
         """
+        self.report("#-------------------------------")
+        self.report("# Create twinboundary structure.")
+        self.report("#-------------------------------")
         return_vals = get_twinboundary_structure(
                 self.inputs.structure,
                 self.inputs.twinboundary_conf)
         self.ctx.structure = return_vals['twinboundary']
+        self.report("Finish create twinboundary structure.")
 
     def run_relax(self):
-        self.report('#-----------------------')
-        self.report('# run relax calculations')
-        self.report('#-----------------------')
+        self.report("#------------------------")
+        self.report("# Run relax calculations.")
+        self.report("#------------------------")
         relax_label = 'relax_twinboundary'
         relax_description = 'relax_twinboundary'
         builder = get_calcjob_builder(
@@ -111,14 +121,15 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
                 calculator_settings=self.inputs.calculator_settings
                 )
         future = self.submit(builder)
-        self.report('{} relax workflow has submitted, pk: {}'
+        self.report("{} relax workflow has submitted, pk: {}"
                 .format(relax_label, future.pk))
         self.to_context(**{relax_label: future})
         self.ctx.relax = future
 
     def extract_final_structure(self):
-        self.report('#------------------------')
-        self.report('# extract final structure')
-        self.report('#------------------------')
+        self.report("#-------------------------")
+        self.report("# Extract final structure.")
+        self.report("#-------------------------")
         self.out('final_structure',
                  self.ctx.relax.outputs.relax__structure)
+        self.report("Finish extract final structure.")
