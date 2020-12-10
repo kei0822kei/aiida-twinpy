@@ -37,8 +37,10 @@ def get_vasp_settings_for_from_phonopy(phonon_pk,
                 'mesh': kpoints['mesh'],
                 'offset': kpoints['offset'],
                 },
-            'options': {'queue_name': queue,
-                        'max_wallclock_seconds': calc['options']['max_wallclock_seconds']},
+            'options': {
+                'queue_name': queue,
+                'max_wallclock_seconds':
+                    calc['options']['max_wallclock_seconds']},
             'clean_workdir': clean_workdir,
             'parser_settings': parser_settings,
             }
