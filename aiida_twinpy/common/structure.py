@@ -251,7 +251,11 @@ def get_twinboundary_shear_structure(twinboundary_shear_conf,
                 atom_positions=atom_positions)
         cell = twinboundary_analyzer.get_shear_cell(
             shear_strain_ratio=shear_strain_ratio.value,
+<<<<<<< HEAD
+            is_standardize=True,
+=======
             is_standardize=False,
+>>>>>>> 41e75928fe54ad5cda979f953e61d1d53409263a
             atom_positions=atom_positions)
 
     orig_structure = get_aiida_structure(cell=orig_cell)
@@ -259,6 +263,21 @@ def get_twinboundary_shear_structure(twinboundary_shear_conf,
 
     # kpoints
     kpt_info = aiida_relax_collection.aiida_relaxes[0].get_kpoints_info()
+<<<<<<< HEAD
+    rlx_mesh = np.array(kpt_info['mesh'])
+    rlx_offset = np.array(kpt_info['offset'])
+    rlx_kpoints = (rlx_mesh, rlx_offset)
+    std_base = StandardizeCell(twinboundary_analyzer.relax_analyzer.original_cell)
+    orig_kpoints = std_base.convert_kpoints(kpoints=rlx_kpoints,
+                                            kpoints_type='primitive')['original']
+    std = StandardizeCell(orig_cell)
+    kpoints = std.convert_kpoints(kpoints=orig_kpoints,
+                                  kpoints_type='original')['primitive']
+    kpt_orig = KpointsData()
+    kpt_orig.set_kpoints_mesh(orig_kpoints[0], offset=orig_kpoints[1])
+    kpt = KpointsData()
+    kpt.set_kpoints_mesh(kpoints[0], offset=kpoints[1])
+=======
     rlx_mesh = kpt_info['mesh']
     rlx_offset = kpt_info['offset']
     std_base = StandardizeCell(twinboundary_analyzer.relax_analyzer.original_cell)
@@ -273,10 +292,15 @@ def get_twinboundary_shear_structure(twinboundary_shear_conf,
                       decimals=4)
     kpt = KpointsData()
     kpt.set_kpoints_mesh(mesh, offset=offset)
+>>>>>>> 41e75928fe54ad5cda979f953e61d1d53409263a
 
     return_vals = {}
     return_vals['twinboundary_shear_structure_orig'] = orig_structure
     return_vals['twinboundary_shear_structure'] = structure
+<<<<<<< HEAD
+    return_vals['kpoints_orig'] = kpt_orig
+=======
+>>>>>>> 41e75928fe54ad5cda979f953e61d1d53409263a
     return_vals['kpoints'] = kpt
 
     return return_vals
