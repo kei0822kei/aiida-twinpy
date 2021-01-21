@@ -31,9 +31,13 @@ class TwinBoundaryShearWorkChain(WorkChain):
         >>>     'twinboundary_relax_pk': 11111,
         >>>     'additional_relax_pks': [11112, 11113],
         >>>     'shear_strain_ratios': [0.01, 0.02],
+<<<<<<< HEAD
         >>>     'options': {'queue_name': 'vega-a',
         >>>                 'max_wallclock_sseconds': 100 * 3600},
+=======
+>>>>>>> 41e75928fe54ad5cda979f953e61d1d53409263a
         >>>     })
+        >>> kpoints_interval = Float(0.15)
         >>> # outline
         >>> spec.outline(
         >>>     cls.create_sheared_structures,
@@ -55,11 +59,20 @@ class TwinBoundaryShearWorkChain(WorkChain):
         super(TwinBoundaryShearWorkChain, cls).define(spec)
         spec.input('computer', valid_type=Str, required=True)
         spec.input('twinboundary_shear_conf', valid_type=Dict, required=True)
+<<<<<<< HEAD
+=======
+        # spec.input('kpoints_interval', valid_type=Float, required=False,
+        #            default=lambda: Float(-1.))
+>>>>>>> 41e75928fe54ad5cda979f953e61d1d53409263a
 
         spec.outline(
             cls.initialize,
             while_(cls.is_run_next_step)(
                 cls.create_twinboundary_shear_structure,
+<<<<<<< HEAD
+=======
+                # cls.create_kpoints,
+>>>>>>> 41e75928fe54ad5cda979f953e61d1d53409263a
                 cls.run_relax,
                 cls.update_vals,
                 ),
@@ -68,7 +81,26 @@ class TwinBoundaryShearWorkChain(WorkChain):
 
         spec.output('relax_results', valid_type=Dict, required=False)
 
+<<<<<<< HEAD
     def initialize(self):
+=======
+    # def extract_kpoints_interval_from_twinboudnary_relax(self):
+    #     rlx = load_node(
+    #         self.inputs.twinboundary_shear_conf['additional_relax_pks'][-1])
+    #     structure = rlx.outputs.relax__structure
+    #     kpoints = rlx.inputs.kpoints
+    #     return_vals = get_kpoints_interval(structure=structure,
+    #                                        kpoints=kpoints)
+    #     return return_vals['interval']
+
+    def initialize(self):
+        # if self.inputs.kpoints_interval.value == -1.:
+        #     self.ctx.interval = \
+        #             self.extract_kpoints_interval_from_twinboudnary_relax()
+        # else:
+        #     self.ctx.interval = self.inputs.kpoints_interval
+
+>>>>>>> 41e75928fe54ad5cda979f953e61d1d53409263a
         return_vals = store_shear_ratios(self.inputs.twinboundary_shear_conf)
         num = len(self.inputs.twinboundary_shear_conf['shear_strain_ratios'])
         self.ctx.ratios = []
@@ -121,6 +153,17 @@ class TwinBoundaryShearWorkChain(WorkChain):
                 return_vals['twinboundary_shear_structure']
         self.ctx.kpoints = \
                 return_vals['kpoints']
+<<<<<<< HEAD
+=======
+
+    # def create_kpoints(self):
+    #     self.report('#---------------')
+    #     self.report('# create kpoints')
+    #     self.report('#---------------')
+    #     self.ctx.kpoints = get_kpoints_from_interval(
+    #             structure=self.ctx.structure,
+    #             interval=self.ctx.interval)
+>>>>>>> 41e75928fe54ad5cda979f953e61d1d53409263a
 
     def run_relax(self):
         self.report('#------------------------------')
@@ -143,3 +186,41 @@ class TwinBoundaryShearWorkChain(WorkChain):
             relax_label, future.pk))
         self.to_context(**{relax_label: future})
         self.ctx.previous_relax_pk = Int(future.pk)
+<<<<<<< HEAD
+=======
+
+    # def create_energies(self):
+    #     self.report('#----------------')
+    #     self.report('# collect results')
+    #     self.report('#----------------')
+    #     rlx_results = {}
+    #     for i in range(len(self.ctx.ratios)):
+    #         label = 'twinboundaryshear_%03d' % i
+    #         relax_label = 'rlx_' + label
+    #         rlx_results[relax_label] = self.ctx[relax_label].outputs.misc
+    #     return_vals = collect_twinboundary_shear_results(**rlx_results)
+    #     self.out('relax_results', return_vals['relax_results'])
+
+    # def run_phonon(self):
+    #     self.report('#-----------')
+    #     self.report('# run phonon')
+    #     self.report('#-----------')
+    #     for i, ratio in enumerate(self.ctx.ratios):
+    #         label = 'twinboundaryshear_%03d' % i
+    #         relax_label = 'rlx_' + label
+    #         phonon_label = 'ph_' + label
+    #         phonon_description = phonon_label + ", ratio: %f" % ratio
+    #         structure = self.ctx[relax_label].outputs.relax__structure
+    #         builder = get_calcjob_builder(
+    #                 label=phonon_label,
+    #                 description=phonon_description,
+    #                 calc_type='phonon',
+    #                 computer=self.inputs.computer,
+    #                 structure=structure,
+    #                 calculator_settings=self.inputs.calculator_settings
+    #                 )
+    #         future = self.submit(builder)
+    #         self.report('{} phonopy workflow has submitted, pk: {}'
+    #                 .format(phonon_label, future.pk))
+    #         self.to_context(**{phonon_label: future})
+>>>>>>> 41e75928fe54ad5cda979f953e61d1d53409263a
