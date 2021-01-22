@@ -76,11 +76,7 @@ def get_calcjob_builder_for_twinboundary_shear(label,
     builder.relax.positions = Bool(True)
     builder.relax.shape = Bool(False)
     builder.relax.volume = Bool(False)
-<<<<<<< HEAD
-    builder.relax.convergence_positions = Float(1e-5)
-=======
     builder.relax.convergence_positions = Float(1e-6)
->>>>>>> 41e75928fe54ad5cda979f953e61d1d53409263a
     builder.relax.force_cutoff = \
             Float(aiida_relax.get_max_force())
 

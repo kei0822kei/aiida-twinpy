@@ -251,11 +251,8 @@ def get_twinboundary_shear_structure(twinboundary_shear_conf,
                 atom_positions=atom_positions)
         cell = twinboundary_analyzer.get_shear_cell(
             shear_strain_ratio=shear_strain_ratio.value,
-<<<<<<< HEAD
             is_standardize=True,
-=======
-            is_standardize=False,
->>>>>>> 41e75928fe54ad5cda979f953e61d1d53409263a
+            # is_standardize=False,
             atom_positions=atom_positions)
 
     orig_structure = get_aiida_structure(cell=orig_cell)
