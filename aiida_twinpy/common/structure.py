@@ -260,7 +260,6 @@ def get_twinboundary_shear_structure(twinboundary_shear_conf,
 
     # kpoints
     kpt_info = aiida_relax_collection.aiida_relaxes[0].get_kpoints_info()
-<<<<<<< HEAD
     rlx_mesh = np.array(kpt_info['mesh'])
     rlx_offset = np.array(kpt_info['offset'])
     rlx_kpoints = (rlx_mesh, rlx_offset)
@@ -274,30 +273,11 @@ def get_twinboundary_shear_structure(twinboundary_shear_conf,
     kpt_orig.set_kpoints_mesh(orig_kpoints[0], offset=orig_kpoints[1])
     kpt = KpointsData()
     kpt.set_kpoints_mesh(kpoints[0], offset=kpoints[1])
-=======
-    rlx_mesh = kpt_info['mesh']
-    rlx_offset = kpt_info['offset']
-    std_base = StandardizeCell(twinboundary_analyzer.relax_analyzer.original_cell)
-    base_mesh = np.round(np.abs(np.dot(std_base.rotation_matrix.T, rlx_mesh)),
-                    decimals=4).astype(int)
-    base_offset = np.round(np.abs(np.dot(std_base.rotation_matrix.T, rlx_offset)),
-                      decimals=4)
-    std = StandardizeCell(orig_cell)
-    mesh = np.round(np.abs(np.dot(std.rotation_matrix, base_mesh)),
-                    decimals=4).astype(int)
-    offset = np.round(np.abs(np.dot(std.rotation_matrix, base_offset)),
-                      decimals=4)
-    kpt = KpointsData()
-    kpt.set_kpoints_mesh(mesh, offset=offset)
->>>>>>> 41e75928fe54ad5cda979f953e61d1d53409263a
 
     return_vals = {}
     return_vals['twinboundary_shear_structure_orig'] = orig_structure
     return_vals['twinboundary_shear_structure'] = structure
-<<<<<<< HEAD
     return_vals['kpoints_orig'] = kpt_orig
-=======
->>>>>>> 41e75928fe54ad5cda979f953e61d1d53409263a
     return_vals['kpoints'] = kpt
 
     return return_vals
