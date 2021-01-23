@@ -31,22 +31,8 @@ class TwinBoundaryShearWorkChain(WorkChain):
         >>>     'twinboundary_relax_pk': 11111,
         >>>     'additional_relax_pks': [11112, 11113],
         >>>     'shear_strain_ratios': [0.01, 0.02],
-        >>>     })
-        >>> kpoints_interval = Float(0.15)
-        >>> # outline
-        >>> spec.outline(
-        >>>     cls.create_sheared_structures,
-        >>>     if_(cls.dry_run)(
-        >>>         cls.terminate_dry_run,
-        >>>         ).else_(
-        >>>         cls.run_relax,
-        >>>         cls.create_energies,
-        >>>         ),
-        >>>     if_(cls.is_phonon)(
-        >>>         cls.run_phonon,
-        >>>         ),
-        >>>     cls.terminate
-        >>> )
+        >>>     'options': {'queue_name': 'vega-a',
+        >>>                 'max_wallclock_sseconds': 100 * 3600},
     """
 
     @classmethod
@@ -54,14 +40,10 @@ class TwinBoundaryShearWorkChain(WorkChain):
         super(TwinBoundaryShearWorkChain, cls).define(spec)
         spec.input('computer', valid_type=Str, required=True)
         spec.input('twinboundary_shear_conf', valid_type=Dict, required=True)
-        # spec.input('kpoints_interval', valid_type=Float, required=False,
-        #            default=lambda: Float(-1.))
-
         spec.outline(
             cls.initialize,
             while_(cls.is_run_next_step)(
                 cls.create_twinboundary_shear_structure,
-                # cls.create_kpoints,
                 cls.run_relax,
                 cls.update_vals,
                 ),

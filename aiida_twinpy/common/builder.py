@@ -65,6 +65,11 @@ def get_calcjob_builder_for_twinboundary_shear(label,
     builder.structure = structure
     builder.metadata.label = label
     builder.metadata.description = description
+<<<<<<< HEAD
+    builder.code = Code.get_from_string(
+                       '{}@{}'.format('vasp544mpi', computer.value))
+=======
+>>>>>>> 41e75928fe54ad5cda979f953e61d1d53409263a
 
     # fix relax conf
     builder.relax.convergence_max_iterations = Int(40)
