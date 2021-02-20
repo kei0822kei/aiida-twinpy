@@ -1,15 +1,19 @@
 #!/usr/bin/env python
 
+"""
+This module provides aiida workflow builder.
+"""
+
 import warnings
+from twinpy.interfaces.aiida.vasp import AiidaRelaxWorkChain
+from twinpy.interfaces.aiida.twinboundary \
+        import AiidaTwinBoudnaryRelaxWorkChain
 from aiida.common.extendeddicts import AttributeDict
 from aiida.orm import (load_node, Code, Bool, Dict,
                        Float, Int, Str, KpointsData)
 from aiida.plugins import WorkflowFactory
 from aiida import load_profile
 from aiida_twinpy.common.interfaces import get_vasp_settings_for_from_phonopy
-from twinpy.interfaces.aiida.vasp import AiidaRelaxWorkChain
-from twinpy.interfaces.aiida.twinboundary \
-        import AiidaTwinBoudnaryRelaxWorkChain
 
 load_profile()
 
@@ -20,6 +24,9 @@ def get_calcjob_builder_for_modulation(label,
                                        structure,
                                        modulation_conf,
                                        ):
+    """
+    FUTURE EDIT.
+    """
     conf = modulation_conf.get_dict()
     incar_update = conf['incar_update_settings']
     incar_update.update({'isif': 2})
@@ -42,11 +49,11 @@ def get_calcjob_builder_for_modulation(label,
     return builder
 
 
-def get_calcjob_builder_for_twinboundary_shear(label,
-                                               description,
-                                               computer,
-                                               structure,
-                                               kpoints,
+def get_calcjob_builder_for_twinboundary_shear(label:str,
+                                               description:str,
+                                               computer:Str,
+                                               structure:StructureData,
+                                               kpoints:KpointsData,
                                                twinboundary_shear_conf):
     conf = dict(twinboundary_shear_conf)
     aiida_twinboundary = AiidaTwinBoudnaryRelaxWorkChain(
@@ -82,27 +89,27 @@ def get_calcjob_builder_for_twinboundary_shear(label,
     return builder
 
 
-def get_calcjob_builder(label,
-                        description,
-                        calc_type,
-                        computer,
-                        structure,
-                        calculator_settings,
+def get_calcjob_builder(label:str,
+                        description:str,
+                        calc_type:str,
+                        computer:Str,
+                        structure:StructureData,
+                        calculator_settings:Dict,
                         ):
     """
-    get calcjob builder
+    Get calcjob builder.
 
     Args:
-        label (str): label
-        description (str): description
-        calc_type (str): 'relax' or 'phonon'
-        computer: (Str) computer
-        structure: (StructureData) structure
-        calculator_settings: (Dict) calculator_settings
+        label: Label.
+        description: Description.
+        calc_type: Choose 'relax' or 'phonon'.
+        computer: Computer.
+        structure: Structure.
+        calculator_settings: Calculator_settings.
 
     Examples:
-        all of the input values must be wrapped by aiida datatype
-        except 'label', 'description' and calc_type
+        All of the input values must be wrapped by aiida datatype
+        except 'label', 'description' and calc_type.
 
         >>> label = 'label of calcjob builder'
         >>> description = 'description of calcjob builder'
@@ -160,10 +167,6 @@ def get_calcjob_builder(label,
         >>> max_wallclock_seconds = 3600*10  # default
         >>> clean_workdir = True  # default
         >>> relax_conf = {
-        >>>     # set automatically => 'perform': True,
-        >>>     # set automatically => 'positions': True,
-        >>>     # set automatically => 'volume': False,
-        >>>     # set automatically => 'shape': False,
         >>>     'algo': 'rd',  # you can also choose 'cg' (default)
         >>>     'steps': 20,
         >>>     'convergence_absolute': False,
@@ -198,12 +201,13 @@ def get_calcjob_builder(label,
     builder.options = _get_options(**dic[calc_type]['options'])
     builder.structure = structure
 
-    if calc_type == 'relax' or calc_type == 'vasp':
+    if calc_type in ('relax', 'vasp'):
         builder.code = Code.get_from_string('{}@{}'.format(
             dic[calc_type]['vasp_code'], computer.value))
         builder.clean_workdir = Bool(dic[calc_type]['clean_workdir'])
         builder.verbose = Bool(True)
-        builder.parameters = Dict(dict=dic[calc_type]['incar_settings'])
+        builder.parameters = Dict(
+                dict={'incar': dic[calc_type]['incar_settings']})
         builder.settings = \
             Dict(dict={'parser_settings': dic[calc_type]['parser_settings']})
         builder.kpoints = _get_kpoints(dic[calc_type]['kpoints'])
@@ -225,7 +229,7 @@ def get_calcjob_builder(label,
     return builder
 
 
-def _get_phonon_vasp_settings(computer, settings):
+def _get_phonon_vasp_settings(computer:str, settings:dict) -> dict:
     forces_config = {'code_string': settings['vasp_code']+'@'+computer,
                      'kpoints_mesh': settings['kpoints']['mesh'],
                      'kpoints_offset': settings['kpoints']['offset'],
@@ -235,21 +239,21 @@ def _get_phonon_vasp_settings(computer, settings):
                      'parser_settings': {'add_energies': True,
                                          'add_forces': True,
                                          'add_stress': True},
-                     'parameters': settings['incar_settings']}
+                     'parameters': {'incar': settings['incar_settings']}}
     ph_settings = settings['phonon_conf']
     ph_settings['is_nac'] = False
     return {'forces_config': forces_config,
             'ph_settings': ph_settings}
 
 
-def _get_kpoints(kpoints):
+def _get_kpoints(kpoints:dict) -> KpointsData:
     kpt = KpointsData()
     kpt.set_kpoints_mesh(kpoints['mesh'], offset=kpoints['offset'])
     return kpt
 
 
-def _get_options(queue_name='',
-                 max_wallclock_seconds=100 * 3600):
+def _get_options(queue_name:str='',
+                 max_wallclock_seconds:int=100*3600) -> Dict:
     options = AttributeDict()
     options.account = ''
     options.qos = ''
@@ -260,13 +264,9 @@ def _get_options(queue_name='',
     return Dict(dict=options)
 
 
-def _get_relax_attribute(relax_conf):
-    # updates = {'perform': True,
-    #            'positions': True,
-    #            'volume': False,
-    #            'shape': False}
+def _get_relax_attribute(relax_conf:dict) -> AttributeDict:
     updates = {'perform': True}
-    for key in updates.keys():
+    for key in updates:
         if key in relax_conf.keys():
             if relax_conf[key] is not updates[key]:
                 warnings.warn("key {} in 'relax_conf' is overwritten to {}"
@@ -277,46 +277,47 @@ def _get_relax_attribute(relax_conf):
     if 'perform' in keys:
         relax_attribute.perform = \
                 Bool(relax_conf['perform'])
-    if 'positions' in keys:
-        relax_attribute.positions = \
-                Bool(relax_conf['positions'])
-    if 'volume' in keys:
-        relax_attribute.volume = \
-                Bool(relax_conf['volume'])
-    if 'shape' in keys:
-        relax_attribute.shape = \
-                Bool(relax_conf['shape'])
     if 'algo' in keys:
         relax_attribute.algo = \
                 Str(relax_conf['algo'])
+    if 'energy_cutoff' in keys:
+        relax_attribute.energy_cutoff = \
+                Float(relax_conf['energy_cutoff'])
+    if 'force_cutoff' in keys:
+        relax_attribute.force_cutoff = \
+                Float(relax_conf['force_cutoff'])
     if 'steps' in keys:
         relax_attribute.steps = \
                 Int(relax_conf['steps'])
+    if 'positions' in keys:
+        relax_attribute.positions = \
+                Bool(relax_conf['positions'])
+    if 'shape' in keys:
+        relax_attribute.shape = \
+                Bool(relax_conf['shape'])
+    if 'volume' in keys:
+        relax_attribute.volume = \
+                Bool(relax_conf['volume'])
+    if 'convergence_on' in keys:
+        relax_attribute.convergence_on = \
+                Bool(relax_conf['convergence_on'])
     if 'convergence_absolute' in keys:
         relax_attribute.convergence_absolute = \
                 Bool(relax_conf['convergence_absolute'])
     if 'convergence_max_iterations' in keys:
         relax_attribute.convergence_max_iterations = \
                 Int(relax_conf['convergence_max_iterations'])
-    if 'convergence_on' in keys:
-        relax_attribute.convergence_on = \
-                Bool(relax_conf['convergence_on'])
-    if 'convergence_positions' in keys:
-        relax_attribute.convergence_positions = \
-                Float(relax_conf['convergence_positions'])
-    if 'convergence_shape_angles' in keys:
-        relax_attribute.convergence_shape_angles = \
-                Float(relax_conf['convergence_shape_angles'])
-    if 'convergence_shape_lengths' in keys:
-        relax_attribute.convergence_shape_lengths = \
-                Float(relax_conf['convergence_shape_lengths'])
     if 'convergence_volume' in keys:
         relax_attribute.convergence_volume = \
                 Float(relax_conf['convergence_volume'])
-    if 'force_cutoff' in keys:
-        relax_attribute.force_cutoff = \
-                Float(relax_conf['force_cutoff'])
-    if 'energy_cutoff' in keys:
-        relax_attribute.energy_cutoff = \
-                Float(relax_conf['energy_cutoff'])
+    if 'convergence_positions' in keys:
+        relax_attribute.convergence_positions = \
+                Float(relax_conf['convergence_positions'])
+    if 'convergence_shape_lengths' in keys:
+        relax_attribute.convergence_shape_lengths = \
+                Float(relax_conf['convergence_shape_lengths'])
+    if 'convergence_shape_angles' in keys:
+        relax_attribute.convergence_shape_angles = \
+                Float(relax_conf['convergence_shape_angles'])
+
     return relax_attribute
