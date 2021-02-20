@@ -1,8 +1,12 @@
 #!usr/bin/env python
 
+"""
+This module deals with kpoints.
+"""
+
 import numpy as np
 from aiida.engine import calcfunction
-from aiida.orm import Float, Dict, KpointsData, List
+from aiida.orm import Bool, Float, Dict, KpointsData, StructureData
 from twinpy.interfaces.aiida.base import get_cell_from_aiida
 from twinpy.common.kpoints import Kpoints
 from twinpy.structure.lattice import CrystalLattice
@@ -69,33 +73,33 @@ def fix_kpoints(calculator_settings:Dict,
     return return_vals
 
 
-@calcfunction
-def get_kpoints_interval(structure, kpoints):
-    """
-    Get kpoints interval.
-    """
-    cell = get_cell_from_aiida(structure)
-    kpoints_info = get_mesh_offset_from_direct_lattice(
-            lattice=cell[0],
-            mesh=kpoints.get_kpoints_mesh()[0],
-            )
-    ave_interval = np.average(kpoints_info['intervals'])
-
-    return_vals = {}
-    return_vals['interval'] = Float(ave_interval)
-    return return_vals
-
-
-@calcfunction
-def get_kpoints_from_interval(structure, interval):
-    """
-    Get kpoints from interval.
-    """
-    cell = get_cell_from_aiida(structure)
-    kpt_info = get_mesh_offset_from_direct_lattice(
-            lattice=cell[0], interval=interval.value)
-    mesh = kpt_info['mesh']
-    offset = kpt_info['offset']
-    kpt = KpointsData()
-    kpt.set_kpoints_mesh(mesh, offset)
-    return kpt
+# @calcfunction
+# def get_kpoints_interval(structure, kpoints):
+#     """
+#     Get kpoints interval.
+#     """
+#     cell = get_cell_from_aiida(structure)
+#     kpoints_info = get_mesh_offset_from_direct_lattice(
+#             lattice=cell[0],
+#             mesh=kpoints.get_kpoints_mesh()[0],
+#             )
+#     ave_interval = np.average(kpoints_info['intervals'])
+# 
+#     return_vals = {}
+#     return_vals['interval'] = Float(ave_interval)
+#     return return_vals
+# 
+# 
+# @calcfunction
+# def get_kpoints_from_interval(structure, interval):
+#     """
+#     Get kpoints from interval.
+#     """
+#     cell = get_cell_from_aiida(structure)
+#     kpt_info = get_mesh_offset_from_direct_lattice(
+#             lattice=cell[0], interval=interval.value)
+#     mesh = kpt_info['mesh']
+#     offset = kpt_info['offset']
+#     kpt = KpointsData()
+#     kpt.set_kpoints_mesh(mesh, offset)
+#     return kpt
