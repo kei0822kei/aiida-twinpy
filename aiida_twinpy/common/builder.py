@@ -11,7 +11,7 @@ from twinpy.interfaces.aiida.twinboundary \
         import AiidaTwinBoudnaryRelaxWorkChain
 from aiida.common.extendeddicts import AttributeDict
 from aiida.orm import (load_node, Code, Bool, Dict,
-                       Float, Int, Str, KpointsData)
+                       Float, Int, Str, StructureData, KpointsData)
 from aiida.plugins import WorkflowFactory
 from aiida import load_profile
 from aiida_twinpy.common.interfaces import get_vasp_settings_for_from_phonopy
