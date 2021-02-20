@@ -95,7 +95,6 @@ class ShearWorkChain(WorkChain):
         spec.output('gamma', valid_type=Float, required=True)
         spec.output('shear_ratios', valid_type=Dict, required=True)
         spec.output('relax_results', valid_type=Dict, required=False)
-        spec.output('pks', valid_type=Dict, required=True)
 
     def dry_run(self):
         return self.inputs.dry_run
