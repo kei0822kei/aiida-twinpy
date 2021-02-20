@@ -13,7 +13,16 @@ import aiida_twinpy
 
 
 TEST_DIR = os.path.dirname(os.getcwd())
-PARAMETERS = read_yaml(os.path.join(TEST_DIR, 'settings.yaml'))
+
+if os.path.exists(os.path.join(TEST_DIR, 'settings.yaml')):
+    PARAMETERS = read_yaml(os.path.join(TEST_DIR,
+                                        'settings.yaml'))
+else:
+    PARAMETERS = read_yaml(os.path.join(TEST_DIR,
+                                        '..',
+                                        'template',
+                                        'template-pytest_settings.yaml',
+                                        ))
 
 
 @pytest.fixture(autouse=True, scope='session')
