@@ -22,7 +22,7 @@ def collect_relax_results(**rlx_results):
         label = 'shear_%03d' % i
         relax_label = 'rlx_' + label
         energies.append(
-            rlx_results[relax_label]['total_energies']['energy_no_entropy'])
+            rlx_results[relax_label]['total_energies']['energy_extrapolated'])
     return_vals['relax_results'] = Dict(dict={'energies': energies})
     return return_vals
 
