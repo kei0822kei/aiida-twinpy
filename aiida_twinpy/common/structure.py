@@ -1,5 +1,6 @@
 #!usr/bin/env python
 
+from typing import Union
 import numpy as np
 from aiida.engine import calcfunction
 from aiida.orm import Dict, Float, Int, KpointsData, StructureData, load_node
@@ -16,20 +17,21 @@ from twinpy.structure.standardize import StandardizeCell
 
 @calcfunction
 def get_shear_structures(structure:StructureData,
-                         shear_conf:Dict):
+                         shear_conf:Union[dict,Dict]):
     """
     Get shear structure.
 
     Args:
-        structure (StructureData): aiida structure data
-        shear_conf (Dict): shear config
+        structure: Aiida structure data.
+        shear_conf: Shear config. They are parsed to Twinpy.set_shear.
 
     Examples:
-        Example of shear_conf
+        Example of shear_conf is as bellow.
 
         >>> shear_conf = Dict(dict={
         >>>     'twinmode': '10-12',
         >>>     'grids': 5,
+        >>>     'expansion_ratios': [1.1, 1.2, 0.9],
         >>>     })
 
         >>> # following settings are automatically set
@@ -67,8 +69,12 @@ def get_shear_structures(structure:StructureData,
     symprec = 1e-5
     no_sort = True
     get_sort_list = False
+    expansion_ratios = [1., 1., 1.]
 
     conf = dict(shear_conf)
+    if 'expansion_ratios' in conf:
+        expansion_ratios = conf['expansion_ratios']
+
     cell = get_cell_from_aiida(structure=structure,
                                get_scaled_positions=True)
     ratios = [ i / (int(conf['grids'])-1) for i in range(int(conf['grids'])) ]
@@ -83,6 +89,7 @@ def get_shear_structures(structure:StructureData,
                 yshift=yshift,
                 dim=dim,
                 shear_strain_ratio=ratio,
+                expansion_ratios=expansion_ratios,
                 is_primitive=is_primitive,
                 )
         std = twinpy.get_shear_standardize(
