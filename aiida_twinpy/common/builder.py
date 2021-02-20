@@ -4,6 +4,7 @@
 This module provides aiida workflow builder.
 """
 
+from typing import Union
 import warnings
 from twinpy.interfaces.aiida.vasp import AiidaRelaxWorkChain
 from twinpy.interfaces.aiida.twinboundary \
@@ -94,7 +95,7 @@ def get_calcjob_builder(label:str,
                         calc_type:str,
                         computer:Str,
                         structure:StructureData,
-                        calculator_settings:Dict,
+                        calculator_settings:Union[dict,Dict],
                         ):
     """
     Get calcjob builder.
@@ -185,8 +186,7 @@ def get_calcjob_builder(label:str,
         >>>                 # set automatically => 'is_nac': False
         >>>                }
     """
-    # not use get_dict() in the case calculator_settings is 'dict' object
-    dic = dict(calculator_settings)
+    dic = dict(calculator_settings)  # this works both type dict and Dict.
     if calc_type == 'vasp':
         workflow = WorkflowFactory('vasp.vasp')
     elif calc_type == 'relax':
