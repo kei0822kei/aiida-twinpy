@@ -4,7 +4,6 @@ import warnings
 from aiida.engine import WorkChain, while_
 from aiida.orm import load_node, Str, Int, Dict, StructureData
 from aiida_twinpy.common.structure import get_twinboundary_structure
-from aiida_twinpy.common.utils import reset_isif
 from aiida_twinpy.common.builder import get_calcjob_builder
 
 
@@ -13,17 +12,17 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
     WorkChain for twin boundary relax of hexagonal metal.
 
     Args:
-        calculator_settings: (Dict) for more detail,
-                             see common.builder.get_calcjob_builder
-        computer: (Str) required=True
+        calculator_settings: (Dict) For more detail,
+                             see common.builder.get_calcjob_builder.
+        computer: (Str) required=True.
         dry_run: (Bool) required=True, If True,
-                 just make sheared structure, not run relax
+                 just make sheared structure, not run relax.
         run_phonon: (Bool) required=True
-        shear_conf: (Dict) shear config, for more detail see Examples
-        structure: (StructureData) required=True, hexagonal structure
+        shear_conf: (Dict) Shear config. For more detail see Examples.
+        structure: (StructureData) required=True. Hexagonal structure.
 
     Examples:
-        workflow is as follows
+        Workflow is as follows,
 
         >>> # outline
         >>> spec.outline(
@@ -59,7 +58,7 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
             cls.run_relax,
             cls.extract_final_structure,
             cls.terminate,
-        )
+            )
 
         spec.output('final_structure', valid_type=StructureData, required=True)
 
