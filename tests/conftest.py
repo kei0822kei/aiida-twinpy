@@ -4,17 +4,24 @@
 This is pytest fixtures.
 """
 
-import os
+jmport os
+import datetime
 import pytest
 from pymatgen.io.vasp.inputs import Poscar
+from aiida.cmdline.utils.decorators import with_dbenv
+from aiida.orm import Group
 from twinpy.interfaces.pymatgen import get_cell_from_pymatgen_structure
 from twinpy.file_io import read_yaml
 import aiida_twinpy
 
 
-TEST_DIR = os.path.dirname(os.getcwd())
+TEST_DIR = os.path.join(
+        os.path.dirname(os.path.dirname(aiida_twinpy.__file__)),
+        'tests',
+        )
 
-if os.path.exists(os.path.join(TEST_DIR, 'settings.yaml')):
+if os.path.exists(os.path.join(TEST_DIR,
+                               'settings.yaml')):
     PARAMETERS = read_yaml(os.path.join(TEST_DIR,
                                         'settings.yaml'))
 else:
@@ -23,6 +30,31 @@ else:
                                         'template',
                                         'template-pytest_settings.yaml',
                                         ))
+
+
+@pytest.fixture(autouse=True, scope='session')
+def env_parameters() -> tuple:
+    """
+    Enveronment parameters
+    """
+    return PARAMETERS
+
+
+@pytest.fixture(autouse=True, scope='session')
+@with_dbenv()
+def test_group() -> tuple:
+    """
+    Check group exists.
+    """
+    return Group.get(label=PARAMETERS['group'])
+
+
+@pytest.fixture(autouse=True, scope='session')
+def datetime_now() -> tuple:
+    """
+    Present time.
+    """
+    return datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')
 
 
 @pytest.fixture(autouse=True, scope='session')
@@ -43,6 +75,14 @@ def hcp_mg_relax_cell() -> tuple:
 
 
 @pytest.fixture(autouse=True, scope='session')
+def default_calculator_settings() -> dict:
+    """
+    Default kpoints configuration.
+    """
+    return CALC_SETTINGS
+
+
+@pytest.fixture(autouse=True, scope='session')
 def default_kpoints_conf() -> dict:
     """
     Default kpoints configuration.
@@ -57,11 +97,17 @@ def default_kpoints_conf() -> dict:
 
 
 @pytest.fixture(autouse=True, scope='session')
-def default_calculator_settings() -> dict:
+def default_shear_conf() -> dict:
     """
-    Default kpoints configuration.
+    Default shear configuration.
     """
-    return CALC_SETTINGS
+    shear_conf = {
+            'twinmode': '10-12',
+            'grids': 5,
+            'expansion_ratios': [1., 1., 1.],
+            }
+
+    return shear_conf
 
 
 CALC_SETTINGS = {

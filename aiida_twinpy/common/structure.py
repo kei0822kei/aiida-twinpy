@@ -31,7 +31,7 @@ def get_shear_structures(structure:StructureData,
         >>> shear_conf = Dict(dict={
         >>>     'twinmode': '10-12',
         >>>     'grids': 5,
-        >>>     'expansion_ratios': [1.1, 1.2, 0.9],
+        >>>     'expansion_ratios': [1.2, 1.2, 0.9],
         >>>     })
 
         >>> # following settings are automatically set
