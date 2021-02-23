@@ -106,6 +106,9 @@ class ShearWorkChain(WorkChain):
         self.report("# ---------------------")
         self.report("# Start ShearWorkChain.")
         self.report("# ---------------------")
+        self.ctx.calculator_settings = None
+        self.ctx.ratios = None
+        self.ctx.shears = None
 
     def terminate_dry_run(self):
         self.report("# ----------------------")
