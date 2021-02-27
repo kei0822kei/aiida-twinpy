@@ -4,9 +4,8 @@
 This module deals with kpoints.
 """
 
-import numpy as np
 from aiida.engine import calcfunction
-from aiida.orm import Bool, Float, Dict, KpointsData, StructureData
+from aiida.orm import Bool, Dict, StructureData
 from twinpy.interfaces.aiida.base import get_cell_from_aiida
 from twinpy.common.kpoints import Kpoints
 from twinpy.structure.lattice import CrystalLattice

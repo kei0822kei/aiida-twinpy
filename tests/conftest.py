@@ -4,7 +4,7 @@
 This is pytest fixtures.
 """
 
-jmport os
+import os
 import datetime
 import pytest
 from pymatgen.io.vasp.inputs import Poscar
@@ -88,12 +88,31 @@ def default_kpoints_conf() -> dict:
     Default kpoints configuration.
     """
     kpoints_conf = {
-            'interval': 0.15,
+            'interval': 0.25,
             'decimal_handling': 'round',
             'use_symmetry': True,
             }
 
     return kpoints_conf
+
+
+@pytest.fixture(autouse=True, scope='session')
+def default_twinboundary_relax_conf() -> dict:
+    """
+    Default twinboundary relax configuration.
+    """
+    twinboundary_relax_conf = {
+        'twinmode': '10-12',
+        'twintype': 1,
+        'layers': 4,
+        'delta': 0.06,
+        'xshift': 0.,
+        'yshift': 0.,
+        'shear_strain_ratio': 0.,
+        'expansion_ratios': [1., 1., 1.2],
+        }
+
+    return twinboundary_relax_conf
 
 
 @pytest.fixture(autouse=True, scope='session')

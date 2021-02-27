@@ -1,11 +1,14 @@
 #!usr/bin/env python
 
+"""
+This module creates shear structure and twin boundary structure.
+"""
+
 from typing import Union
 import numpy as np
 from aiida.engine import calcfunction
 from aiida.orm import Dict, Float, Int, KpointsData, StructureData, load_node
 from aiida_twinpy.common.interfaces import get_phonon_from_aiida
-from aiida_phonopy.common.utils import phonopy_atoms_to_structure
 from twinpy.api_twinpy import get_twinpy_from_cell
 from twinpy.interfaces.aiida.base import (get_aiida_structure,
                                           get_cell_from_aiida)
@@ -112,15 +115,15 @@ def get_shear_structures(structure:StructureData,
             'total_structures': Int(len(ratios)),
             }
 
-    for i in range(len(ratios)):
+    for i, ratio in enumerate(ratios):
         shear_structure = shear_structures[i]
         shear_structure.label = 'shear_orig_%03d' % i
         shear_structure.description = 'shear_orig_%03d' % i \
-                                          + ' ratio: {}'.format(ratios[i])
+                                          + ' ratio: {}'.format(ratio)
         vasp_input_structure = vasp_input_structures[i]
         vasp_input_structure.label = 'shear_%03d' % i
         vasp_input_structure.description = 'shear_%03d' % i \
-                                          + ' ratio: {}'.format(ratios[i])
+                                          + ' ratio: {}'.format(ratio)
         return_vals[vasp_input_structure.label] = vasp_input_structure
         return_vals[shear_structure.label] = shear_structure
 
@@ -133,8 +136,8 @@ def get_twinboundary_structure(structure, twinboundary_conf):
     Get twinboudary structure.
 
     Args:
-        structure (StructureData): aiida structure data
-        twinboundary_conf (Dict): shear config
+        structure (StructureData): Hexagonal structure.
+        twinboundary_conf (Dict): Twin boundary configuration.
 
     Examples:
         Example of twinboundary_conf.
@@ -147,6 +150,7 @@ def get_twinboundary_structure(structure, twinboundary_conf):
         >>>     'xshift': 0.,
         >>>     'yshift': 0.,
         >>>     'shear_strain_ratio': 0.,
+        >>>     'expansion_ratios': [1., 1., 1.2],
         >>>     })
 
         >>> # following settings are automatically set
@@ -158,26 +162,16 @@ def get_twinboundary_structure(structure, twinboundary_conf):
         >>> no_sort = True
         >>> get_sort_list = False
     """
-    get_lattice = False
-    move_atoms_into_unitcell = True
-    to_primitive = True
-    no_idealize = False
-    symprec = 1e-5
-    no_sort = True
-    get_sort_list = False
-
-    parameters = {
-        'get_lattice': get_lattice,
-        'move_atoms_into_unitcell': move_atoms_into_unitcell,
-        'to_primitive': to_primitive,
-        'no_idealize': no_idealize,
-        'symprec': symprec,
-        'no_sort': no_sort,
-        'get_sort_list': get_sort_list,
+    conf = {
+        'get_lattice': False,
+        'move_atoms_into_unitcell': True,
+        'to_primitive': True,
+        'no_idealize': False,
+        'symprec': 1e-5,
+        'no_sort': True,
+        'get_sort_list': False,
         }
-    parameters.update(twinboundary_conf.get_dict())
-
-    conf = dict(twinboundary_conf)
+    conf.update(twinboundary_conf.get_dict())
     cell = get_cell_from_aiida(structure=structure,
                                get_scaled_positions=True)
     twinpy = get_twinpy_from_cell(cell=cell,
@@ -188,17 +182,18 @@ def get_twinboundary_structure(structure, twinboundary_conf):
                             layers=conf['layers'],
                             delta=conf['delta'],
                             shear_strain_ratio=conf['shear_strain_ratio'],
+                            expansion_ratios=conf['expansion_ratios'],
                             )
     std = twinpy.get_twinboundary_standardize(
-            get_lattice=get_lattice,
-            move_atoms_into_unitcell=move_atoms_into_unitcell,
+            get_lattice=conf['get_lattice'],
+            move_atoms_into_unitcell=conf['move_atoms_into_unitcell'],
             )
     twinboundary_std_cell = std.get_standardized_cell(
-            to_primitive=to_primitive,
-            no_idealize=no_idealize,
-            symprec=symprec,
-            no_sort=no_sort,
-            get_sort_list=get_sort_list,
+            to_primitive=conf['to_primitive'],
+            no_idealize=conf['no_idealize'],
+            symprec=conf['symprec'],
+            no_sort=['no_sort'],
+            get_sort_list=['get_sort_list'],
             )
     twinboundary_structure = get_aiida_structure(cell=std.cell)
     twinboundary_structure.label = 'twinboundary_orig'
@@ -210,7 +205,7 @@ def get_twinboundary_structure(structure, twinboundary_conf):
             'twinboundary standardized structure'
 
     return_vals = {}
-    return_vals['parameters'] = Dict(dict=parameters)
+    return_vals['twinboundary_parameters'] = Dict(dict=conf)
     return_vals[twinboundary_structure.label] = twinboundary_structure
     return_vals[vasp_input_structure.label] = vasp_input_structure
 
