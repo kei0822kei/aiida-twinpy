@@ -36,7 +36,7 @@ def test_TwinBoundaryRelaxWorkChain(env_parameters,
     builder.structure = get_aiida_structure(cell=hcp_mg_relax_cell)
     builder.use_kpoints_interval = Bool(True)
     builder.kpoints_conf = Dict(dict=kpoints_conf)
-    builder.metadata.label = 'test TwinBoundaryWorkChain (%s)' % datetime_now
+    builder.metadata.label = 'test TwinBoundaryRelaxWorkChain (%s)' % datetime_now
     future = submit(builder)
     test_group.add_nodes(load_node(future.pk))
     print("")

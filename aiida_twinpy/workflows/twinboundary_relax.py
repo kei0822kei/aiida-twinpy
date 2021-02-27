@@ -92,6 +92,7 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
             )
 
         spec.output('final_structure', valid_type=StructureData, required=True)
+        spec.output('twinboundary_parameters', valid_type=Dict, required=True)
 
     def initialize(self):
         self.report("# ---------------------------------")
@@ -141,7 +142,9 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
                 self.inputs.structure,
                 self.inputs.twinboundary_relax_conf)
         self.ctx.structure = return_vals['twinboundary']
-        self.report("Finish create twinboundary structure.")
+        self.out('twinboundary_parameters',
+                 return_vals['twinboundary_parameters'])
+        self.report("# Finish create twinboundary structure.")
 
     def run_relax(self):
         self.report("#------------------------")

@@ -119,11 +119,11 @@ def get_shear_structures(structure:StructureData,
         shear_structure = shear_structures[i]
         shear_structure.label = 'shear_orig_%03d' % i
         shear_structure.description = 'shear_orig_%03d' % i \
-                                          + ' ratio: {}'.format(ratio[i])
+                                          + ' ratio: {}'.format(ratio)
         vasp_input_structure = vasp_input_structures[i]
         vasp_input_structure.label = 'shear_%03d' % i
         vasp_input_structure.description = 'shear_%03d' % i \
-                                          + ' ratio: {}'.format(ratio[i])
+                                          + ' ratio: {}'.format(ratio)
         return_vals[vasp_input_structure.label] = vasp_input_structure
         return_vals[shear_structure.label] = shear_structure
 
@@ -205,7 +205,7 @@ def get_twinboundary_structure(structure, twinboundary_conf):
             'twinboundary standardized structure'
 
     return_vals = {}
-    return_vals['parameters'] = Dict(dict=conf)
+    return_vals['twinboundary_parameters'] = Dict(dict=conf)
     return_vals[twinboundary_structure.label] = twinboundary_structure
     return_vals[vasp_input_structure.label] = vasp_input_structure
 
