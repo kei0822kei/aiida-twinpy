@@ -23,7 +23,7 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
         >>>     cls.initialize,
         >>>     cls.check_initial_isif_is_two,
         >>>     cls.create_twinboudnary_structure,
-        >>>     if_(cls.is_use_kpoints_interval)(
+        >>>     if_(cls.use_kpoints_interval)(
         >>>         cls.fix_kpoints_by_kpoints_interval),
         >>>     cls.run_relax,
         >>>     cls.extract_final_structure,
@@ -85,7 +85,7 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
             cls.initialize,
             cls.check_initial_isif_is_two,
             cls.create_twinboudnary_structure,
-            if_(cls.is_use_kpoints_interval)(
+            if_(cls.use_kpoints_interval)(
                 cls.fix_kpoints_by_kpoints_interval),
             cls.run_relax,
             cls.extract_final_structure,
@@ -94,6 +94,12 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
 
         spec.output('final_structure', valid_type=StructureData, required=True)
         spec.output('twinboundary_parameters', valid_type=Dict, required=True)
+
+    def use_kpoints_interval(self):
+        """
+        Check use kpoints interval.
+        """
+        return self.inputs.use_kpoints_interval
 
     def initialize(self):
         """
@@ -106,9 +112,9 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
         self.ctx.hex_structure = self.inputs.structure
         self.ctx.tb_rlx_conf = self.inputs.twinboundary_relax_conf
         self.ctx.computer = self.inputs.computer
-        self.ctx.use_kpt_interval = self.inputs.use_kpoints_interval
         self.ctx.kpt_conf = self.inputs.kpoints_conf
         self.ctx.tb_structure = None
+        self.report("# Finish.")
 
     def terminate(self):
         """
@@ -153,13 +159,7 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
         self.ctx.tb_structure = return_vals['twinboundary']
         self.out('twinboundary_parameters',
                  return_vals['twinboundary_parameters'])
-        self.report("# Finish create twinboundary structure.")
-
-    def is_use_kpoints_interval(self):
-        """
-        Check use kpoints interval.
-        """
-        return self.ctx.use_kpt_interval
+        self.report("# Finish.")
 
     def fix_kpoints_by_kpoints_interval(self):
         """
@@ -181,6 +181,7 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
         self.report("# To:")
         self.report("#     {}".format(
             self.ctx.calc_settings['relax']['kpoints']))
+        self.report("# Finish.")
 
     def run_relax(self):
         self.report("# -----------------------")
@@ -201,6 +202,7 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
             relax_label, future.pk))
         self.to_context(**{relax_label: future})
         self.ctx.relax = future
+        self.report("# Finish.")
 
     def extract_final_structure(self):
         self.report("# ------------------------")
@@ -208,4 +210,4 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
         self.report("# ------------------------")
         self.out('final_structure',
                  self.ctx.relax.outputs.relax__structure)
-        self.report("# Finish extract final structure.")
+        self.report("# Finish.")
