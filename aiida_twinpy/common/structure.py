@@ -8,7 +8,6 @@ from typing import Union
 import numpy as np
 from aiida.engine import calcfunction
 from aiida.orm import Dict, Float, Int, KpointsData, StructureData, load_node
-from aiida_twinpy.common.interfaces import get_phonon_from_aiida
 from twinpy.api_twinpy import get_twinpy_from_cell
 from twinpy.interfaces.aiida.base import (get_aiida_structure,
                                           get_cell_from_aiida)
@@ -225,10 +224,20 @@ def get_twinboundary_shear_structure(twinboundary_shear_conf,
     conf = twinboundary_shear_conf.get_dict()
     aiida_twinboundary_relax = AiidaTwinBoudnaryRelaxWorkChain(
             load_node(conf['twinboundary_relax_pk']))
-    aiida_relax_collection = aiida_twinboundary_relax.get_aiida_relax(
-            additional_relax_pks=conf['additional_relax_pks'])
-    twinboundary_analyzer = aiida_twinboundary_relax.get_twinboundary_analyzer(
-            additional_relax_pks=conf['additional_relax_pks'])
+
+    if 'additional_relax_pks' in conf and conf['additional_relax_pks']:
+        aiida_rlx_col = aiida_twinboundary_relax.get_aiida_relax(
+                additional_relax_pks=conf['additional_relax_pks'])
+        twinboundary_analyzer = \
+                aiida_twinboundary_relax.get_twinboundary_analyzer(
+                    additional_relax_pks=conf['additional_relax_pks'])
+        kpt_info = aiida_rlx_col.aiida_relaxes[0].get_kpoints_info()
+    else:
+        aiida_rlx = aiida_twinboundary_relax.get_aiida_relax(
+                additional_relax_pks=conf['additional_relax_pks'])
+        twinboundary_analyzer = \
+                aiida_twinboundary_relax.get_twinboundary_analyzer()
+        kpt_info = aiida_rlx.get_kpoints_info()
 
     if previous_shear_strain_ratio is None:
         orig_cell = twinboundary_analyzer.get_shear_cell(
@@ -237,7 +246,6 @@ def get_twinboundary_shear_structure(twinboundary_shear_conf,
         cell = twinboundary_analyzer.get_shear_cell(
             shear_strain_ratio=shear_strain_ratio.value,
             is_standardize=True)
-
     else:
         previous_original_cell = get_cell_from_aiida(
                 previous_original_structure)
@@ -254,14 +262,12 @@ def get_twinboundary_shear_structure(twinboundary_shear_conf,
         cell = twinboundary_analyzer.get_shear_cell(
             shear_strain_ratio=shear_strain_ratio.value,
             is_standardize=True,
-            # is_standardize=False,
             atom_positions=atom_positions)
 
     orig_structure = get_aiida_structure(cell=orig_cell)
     structure = get_aiida_structure(cell=cell)
 
     # kpoints
-    kpt_info = aiida_relax_collection.aiida_relaxes[0].get_kpoints_info()
     rlx_mesh = np.array(kpt_info['mesh'])
     rlx_offset = np.array(kpt_info['offset'])
     rlx_kpoints = (rlx_mesh, rlx_offset)
@@ -285,27 +291,26 @@ def get_twinboundary_shear_structure(twinboundary_shear_conf,
     return return_vals
 
 
-@calcfunction
-def get_modulation_structures(modulation_conf):
-    conf = modulation_conf.get_dict()
-    phonon = get_phonon_from_aiida(conf['phonon_pk'])
-    freq = []
-    for phonon_mode in conf['phonon_modes']:
-        freq.append(phonon.get_frequencies(phonon_mode[0]).tolist())
-
-    unitcell = phonon.get_unitcell().cell
-    primitive = phonon.get_primitive().cell
-    u2p = np.round(np.dot(np.linalg.inv(primitive.T), unitcell.T)).astype(int)
-    dimension = np.dot(u2p, conf['dimension'])
-    phonon.set_modulations(dimension=dimension,
-                           phonon_modes=conf['phonon_modes'])
-    modulations = phonon.get_modulated_supercells()
-
-    return_vals = {}
-    return_vals['frequencies'] = Dict(dict={'frequencies': freq})
-    for i, supercell in enumerate(modulations):
-        modulation = phonopy_atoms_to_structure(supercell)
-        modulation.label = 'modulation_%03d' % (i+1)
-        modulation.description = 'modulation_%03d' % (i+1)
-        return_vals[modulation.label] = modulation
-    return return_vals
+# @calcfunction
+# from aiida_twinpy.common.interfaces import get_phonon_from_aiida
+# def get_modulation_structures(modulation_conf):
+#     conf = modulation_conf.get_dict()
+#     phonon = get_phonon_from_aiida(conf['phonon_pk'])
+#     freq = []
+#     for phonon_mode in conf['phonon_modes']:
+#         freq.append(phonon.get_frequencies(phonon_mode[0]).tolist())
+#     unitcell = phonon.get_unitcell().cell
+#     primitive = phonon.get_primitive().cell
+#     u2p = np.round(np.dot(np.linalg.inv(primitive.T), unitcell.T)).astype(int)
+#     dimension = np.dot(u2p, conf['dimension'])
+#     phonon.set_modulations(dimension=dimension,
+#                            phonon_modes=conf['phonon_modes'])
+#     modulations = phonon.get_modulated_supercells()
+#     return_vals = {}
+#     return_vals['frequencies'] = Dict(dict={'frequencies': freq})
+#     for i, supercell in enumerate(modulations):
+#         modulation = phonopy_atoms_to_structure(supercell)
+#         modulation.label = 'modulation_%03d' % (i+1)
+#         modulation.description = 'modulation_%03d' % (i+1)
+#         return_vals[modulation.label] = modulation
+#     return return_vals

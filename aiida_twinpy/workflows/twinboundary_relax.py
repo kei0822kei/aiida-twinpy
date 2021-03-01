@@ -56,8 +56,8 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
                    valid_type=Dict,
                    required=True,
                    help="""
-            Shear config. For more detail,
-            see aiida_twinpy.common.structure.get_shear_structures.
+            Relax config. For more detail,
+            see aiida_twinpy.common.structure.get_twinboundary_structure.
             """)
         spec.input('structure',
                    valid_type=StructureData,
@@ -95,6 +95,9 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
         spec.output('twinboundary_parameters', valid_type=Dict, required=True)
 
     def initialize(self):
+        """
+        Initialize.
+        """
         self.report("# ---------------------------------")
         self.report("# Start TwinBoundaryRelaxWorkChain.")
         self.report("# ---------------------------------")
@@ -105,9 +108,9 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
         """
         Terminate workflow.
         """
-        self.report("#------------------------------------------------------")
+        self.report("# -----------------------------------------------------")
         self.report("# TwinBoundaryRelaxWorkChain has finished successfully.")
-        self.report("#------------------------------------------------------")
+        self.report("# -----------------------------------------------------")
         self.report("All jobs have finished.")
         self.report("Terminate ShearWorkChain.")
 
@@ -116,9 +119,9 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
         Check initial ISIF setting is 2, which allows to move only
         atom positions.
         """
-        self.report("#-------------------------")
+        self.report("# ------------------------")
         self.report("# Check initial ISIF is 2.")
-        self.report("#-------------------------")
+        self.report("# ------------------------")
         rlx_settings = \
             self.inputs.calculator_settings.get_dict()['relax']['relax_conf']
         run_mode = [rlx_settings['positions'],
@@ -135,9 +138,9 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
         """
         Create twinboundary structure for relax.
         """
-        self.report("#-------------------------------")
+        self.report("# ------------------------------")
         self.report("# Create twinboundary structure.")
-        self.report("#-------------------------------")
+        self.report("# ------------------------------")
         return_vals = get_twinboundary_structure(
                 self.inputs.structure,
                 self.inputs.twinboundary_relax_conf)
@@ -147,9 +150,9 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
         self.report("# Finish create twinboundary structure.")
 
     def run_relax(self):
-        self.report("#------------------------")
+        self.report("# -----------------------")
         self.report("# Run relax calculations.")
-        self.report("#------------------------")
+        self.report("# -----------------------")
         relax_label = 'relax_twinboundary'
         relax_description = 'relax_twinboundary'
         if self.inputs.use_kpoints_interval:
@@ -175,9 +178,9 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
         self.ctx.relax = future
 
     def extract_final_structure(self):
-        self.report("#-------------------------")
+        self.report("# ------------------------")
         self.report("# Extract final structure.")
-        self.report("#-------------------------")
+        self.report("# ------------------------")
         self.out('final_structure',
                  self.ctx.relax.outputs.relax__structure)
         self.report("Finish extract final structure.")
