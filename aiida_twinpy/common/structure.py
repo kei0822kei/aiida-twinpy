@@ -130,7 +130,8 @@ def get_shear_structures(structure:StructureData,
 
 
 @calcfunction
-def get_twinboundary_structure(structure, twinboundary_conf):
+def get_twinboundary_structure(structure:StructureData,
+                               twinboundary_conf:Dict):
     """
     Get twinboudary structure.
 
@@ -187,26 +188,31 @@ def get_twinboundary_structure(structure, twinboundary_conf):
             get_lattice=conf['get_lattice'],
             move_atoms_into_unitcell=conf['move_atoms_into_unitcell'],
             )
-    twinboundary_std_cell = std.get_standardized_cell(
+
+    # twinboundary original structure
+    tb_orig_cell = std.cell
+    tb_orig_structure = get_aiida_structure(cell=tb_orig_cell)
+    tb_orig_structure.label = 'twinboundary_orig'
+    tb_orig_structure.description = \
+            'twinboundary not standardized original structure'
+
+    # twinboundary standardized structure
+    tb_std_cell = std.get_standardized_cell(
             to_primitive=conf['to_primitive'],
             no_idealize=conf['no_idealize'],
             symprec=conf['symprec'],
             no_sort=['no_sort'],
             get_sort_list=['get_sort_list'],
             )
-    twinboundary_structure = get_aiida_structure(cell=std.cell)
-    twinboundary_structure.label = 'twinboundary_orig'
-    twinboundary_structure.description = \
-            'twinboundary not standardized original structure'
-    vasp_input_structure = get_aiida_structure(cell=twinboundary_std_cell)
-    vasp_input_structure.label = 'twinboundary'
-    vasp_input_structure.description = \
+    tb_std_structure = get_aiida_structure(cell=tb_std_cell)
+    tb_std_structure.label = 'twinboundary'
+    tb_std_structure.description = \
             'twinboundary standardized structure'
 
     return_vals = {}
     return_vals['twinboundary_parameters'] = Dict(dict=conf)
-    return_vals[twinboundary_structure.label] = twinboundary_structure
-    return_vals[vasp_input_structure.label] = vasp_input_structure
+    return_vals[tb_orig_structure.label] = tb_orig_structure
+    return_vals[tb_std_structure.label] = tb_std_structure
 
     return return_vals
 
