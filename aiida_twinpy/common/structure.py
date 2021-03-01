@@ -146,7 +146,7 @@ def get_twinboundary_structure(structure, twinboundary_conf):
         >>>     'twinmode': '10-12',
         >>>     'twintype': 1,
         >>>     'layers': 9,
-        >>>     'delta': 0.06,
+        >>>     'delta': 0.,
         >>>     'xshift': 0.,
         >>>     'yshift': 0.,
         >>>     'shear_strain_ratio': 0.,
