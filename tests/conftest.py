@@ -135,9 +135,9 @@ def default_twinboundary_shear_conf() -> dict:
     Default twinboundary shear configuration.
     """
     twinboundary_shear_conf = {
-        'twinboundary_relax_pk': 4851,
+        'twinboundary_relax_pk': 6424,
         'additional_relax_pks': None,
-        'shear_strain_ratios': [0.01, 0.02],
+        'shear_strain_ratios': [0.01, 0.02, 0.03],
         'options': {'queue_name': PARAMETERS['queue_name'],
                     'max_wallclock_seconds': 100 * 3600,
                     }

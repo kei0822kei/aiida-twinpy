@@ -14,7 +14,7 @@ from aiida_twinpy.common.builder import (
 
 class TwinBoundaryShearWorkChain(WorkChain):
     """
-    WorkChain for add shear toward relaxed twinboundary structure
+    WorkChain for add shear toward relaxed twinboundary structure.
 
     Examples:
         workflow is as follows
@@ -104,8 +104,7 @@ class TwinBoundaryShearWorkChain(WorkChain):
         bl = self.ctx.count < len(self.ctx.ratios)
         if bl:
             self.report("# Not have finished.")
-            ct = self.ctx.count + 1
-            self.report("# Start relax (count: %d)." % ct)
+            self.report("# Start relax (count: %d)." % (self.ctx.count+1))
         else:
             self.report("# All relax calculations have finished.")
         return bl
