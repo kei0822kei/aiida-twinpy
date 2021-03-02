@@ -112,7 +112,7 @@ class ShearWorkChain(WorkChain):
 
         spec.output('parent', valid_type=StructureData, required=True)
         spec.output('gamma', valid_type=Float, required=True)
-        spec.output('shear_ratios', valid_type=Dict, required=True)
+        spec.output('shear_strain_ratios', valid_type=Dict, required=True)
         spec.output('relax_results', valid_type=Dict, required=False)
 
     def dry_run(self):
@@ -166,7 +166,7 @@ class ShearWorkChain(WorkChain):
         return_vals = get_shear_structures(
                 structure=self.ctx.hex_structure,
                 shear_conf=self.ctx.shr_conf,)
-        self.ctx.ratios = return_vals['shear_settings']['shear_ratios']
+        self.ctx.ratios = return_vals['shear_settings']['shear_strain_ratios']
         self.ctx.shears = {}
         for i in range(len(self.ctx.ratios)):
             if i == 0:
@@ -174,7 +174,7 @@ class ShearWorkChain(WorkChain):
             label = "shear_%03d" % i
             self.ctx.shears[label] = return_vals[label]
         self.out('gamma', return_vals['gamma'])
-        self.out('shear_ratios', return_vals['shear_settings'])
+        self.out('shear_strain_ratios', return_vals['shear_settings'])
         self.report("# Finish.")
 
     def run_relax(self):

@@ -109,7 +109,7 @@ def get_shear_structures(structure:StructureData,
         vasp_input_structures.append(get_aiida_structure(cell=shear_std_cell))
 
     return_vals = {
-            'shear_settings': Dict(dict={'shear_ratios': ratios}),
+            'shear_settings': Dict(dict={'shear_strain_ratios': ratios}),
             'gamma': Float(twinpy._shear.get_gamma()),
             'total_structures': Int(len(ratios)),
             }
