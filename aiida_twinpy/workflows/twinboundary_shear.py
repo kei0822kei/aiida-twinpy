@@ -54,7 +54,7 @@ class TwinBoundaryShearWorkChain(WorkChain):
             cls.terminate
         )
 
-        spec.output('relax_results', valid_type=Dict, required=False)
+        spec.output('steps_info', valid_type=Dict, required=False)
 
     def initialize(self):
         """
@@ -76,6 +76,7 @@ class TwinBoundaryShearWorkChain(WorkChain):
         self.ctx.original_structure = None
         self.ctx.structure = None
         self.ctx.count = 0
+        self.ctx.steps_info = {}
 
     def set_shear_ratios(self):
         self.report("# -----------------")
@@ -113,6 +114,7 @@ class TwinBoundaryShearWorkChain(WorkChain):
         self.report("# -----------------------------------------------------")
         self.report("# TwinBoundaryShearWorkChain has finished successfully.")
         self.report("# -----------------------------------------------------")
+        self.out('steps_info', Dict(dict=self.ctx.steps_info))
         self.report("# Terminate TwinBoundaryShearWorkChain.")
 
     def create_twinboundary_shear_structure(self):
@@ -146,9 +148,9 @@ class TwinBoundaryShearWorkChain(WorkChain):
         self.report('# Run relax.')
         self.report('# ----------')
         label = 'twinboundary_shear_%03d' % (self.ctx.count+1)
+        ratio = self.ctx.ratios[self.ctx.count]
         relax_label = 'rlx_' + label
-        relax_description = relax_label + ", ratio: %f" \
-                % self.ctx.ratios[self.ctx.count]
+        relax_description = relax_label + ", ratio: %f" % ratio
         builder = get_calcjob_builder_for_twinboundary_shear(
                 label=relax_label,
                 description=relax_description,
@@ -161,4 +163,8 @@ class TwinBoundaryShearWorkChain(WorkChain):
         self.report('{} relax workflow has submitted, pk: {}'.format(
             relax_label, future.pk))
         self.to_context(**{relax_label: future})
+        self.ctx.steps_info[label] ={
+                'shear_strain_ratio': ratio,
+                'relax_pk': future.pk,
+                }
         self.ctx.previous_relax_pk = Int(future.pk)

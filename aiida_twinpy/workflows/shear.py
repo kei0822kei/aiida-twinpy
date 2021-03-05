@@ -175,6 +175,8 @@ class ShearWorkChain(WorkChain):
             self.ctx.shears[label] = return_vals[label]
         self.out('gamma', return_vals['gamma'])
         self.out('shear_strain_ratios', return_vals['shear_settings'])
+        self.report("# Total shear ratios: %d" % len(self.ctx.ratios))
+        self.report("# Shear ratios: {}".format(self.ctx.ratios))
         self.report("# Finish.")
 
     def run_relax(self):
