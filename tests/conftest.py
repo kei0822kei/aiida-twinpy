@@ -129,6 +129,23 @@ def default_shear_conf() -> dict:
     return shear_conf
 
 
+@pytest.fixture(autouse=True, scope='session')
+def default_twinboundary_shear_conf() -> dict:
+    """
+    Default twinboundary shear configuration.
+    """
+    twinboundary_shear_conf = {
+        'twinboundary_relax_pk': 6424,
+        'additional_relax_pks': None,
+        'shear_strain_ratios': [0.01, 0.02],
+        'options': {'queue_name': PARAMETERS['queue_name'],
+                    'max_wallclock_seconds': 100 * 3600,
+                    }
+        }
+
+    return twinboundary_shear_conf
+
+
 CALC_SETTINGS = {
     'phonon': {
         'incar_settings': {

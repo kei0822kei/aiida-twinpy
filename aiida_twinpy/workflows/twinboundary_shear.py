@@ -1,33 +1,25 @@
 #!/usr/bin/env python
 
+"""
+This module provides TwinBoundaryShearWorkChain.
+"""
+
 from aiida.engine import WorkChain, while_
-from aiida.orm import Bool, Float, Int, Str, Dict, load_node
+from aiida.orm import load_node, Int, Str, Dict
 from aiida_twinpy.common.structure import get_twinboundary_shear_structure
 from aiida_twinpy.common.utils import store_shear_ratios
-from aiida_twinpy.common.kpoints import (get_kpoints_interval,
-                                         get_kpoints_from_interval)
 from aiida_twinpy.common.builder import (
         get_calcjob_builder_for_twinboundary_shear)
 
 
 class TwinBoundaryShearWorkChain(WorkChain):
     """
-    WorkChain for add shear toward relaxed twinboundary structure
-
-    Args:
-        calculator_settings: (Dict) for more detail,
-                             see common.builder.get_calcjob_builder
-        computer: (Str) required=True
-        dry_run: (Bool) required=True, If True,
-                 just make sheared structure, not run relax
-        run_phonon: (Bool) required=True
-        shear_conf: (Dict) shear config, for more detail see Examples
-        structure: (StructureData) required=True, hexagonal structure
+    WorkChain for add shear toward relaxed twinboundary structure.
 
     Examples:
         workflow is as follows
 
-        >>> twinboundary_conf = Dict(dict={
+        >>> twinboundary_shear_conf = Dict(dict={
         >>>     'twinboundary_relax_pk': 11111,
         >>>     'additional_relax_pks': [11112, 11113],
         >>>     'shear_strain_ratios': [0.01, 0.02],
@@ -38,10 +30,22 @@ class TwinBoundaryShearWorkChain(WorkChain):
     @classmethod
     def define(cls, spec):
         super(TwinBoundaryShearWorkChain, cls).define(spec)
-        spec.input('computer', valid_type=Str, required=True)
-        spec.input('twinboundary_shear_conf', valid_type=Dict, required=True)
+        spec.input('computer',
+                   valid_type=Str,
+                   required=True,
+                   help="""
+            Computer.
+            """)
+        spec.input('twinboundary_shear_conf',
+                   valid_type=Dict,
+                   required=True,
+                   help="""
+            Twinboundary shear config. For more detail,
+            see aiida_twinpy.common.structure.get_twinboundary_shear_structure.
+            """)
         spec.outline(
             cls.initialize,
+            cls.set_shear_ratios,
             while_(cls.is_run_next_step)(
                 cls.create_twinboundary_shear_structure,
                 cls.run_relax,
@@ -50,55 +54,73 @@ class TwinBoundaryShearWorkChain(WorkChain):
             cls.terminate
         )
 
-        spec.output('relax_results', valid_type=Dict, required=False)
-
-    # def extract_kpoints_interval_from_twinboudnary_relax(self):
-    #     rlx = load_node(
-    #         self.inputs.twinboundary_shear_conf['additional_relax_pks'][-1])
-    #     structure = rlx.outputs.relax__structure
-    #     kpoints = rlx.inputs.kpoints
-    #     return_vals = get_kpoints_interval(structure=structure,
-    #                                        kpoints=kpoints)
-    #     return return_vals['interval']
+        spec.output('steps_info', valid_type=Dict, required=False)
 
     def initialize(self):
-        # if self.inputs.kpoints_interval.value == -1.:
-        #     self.ctx.interval = \
-        #             self.extract_kpoints_interval_from_twinboudnary_relax()
-        # else:
-        #     self.ctx.interval = self.inputs.kpoints_interval
-
-        return_vals = store_shear_ratios(self.inputs.twinboundary_shear_conf)
-        num = len(self.inputs.twinboundary_shear_conf['shear_strain_ratios'])
+        """
+        Initialize.
+        """
+        self.report("# ---------------------------------")
+        self.report("# Start TwinBoundaryShearWorkChain.")
+        self.report("# ---------------------------------")
         self.ctx.ratios = []
-        for i in range(num):
-            label = 'ratio_%03d' % (i+1)
-            self.ctx.ratios.append(return_vals[label])
-        self.ctx.previous_relax_pk = Int(
-            self.inputs.twinboundary_shear_conf['additional_relax_pks'][-1])
+        conf = self.inputs.twinboundary_shear_conf.get_dict()
+        if 'additional_relax_pks' in conf and conf['additional_relax_pks']:
+            prev_rlx_pk = conf['additional_relax_pks'][-1]
+        else:
+            self.report("# There is no additional_relax_pks.")
+            prev_rlx_pk = load_node(conf['twinboundary_relax_pk']).called[-1].pk
+
+        self.ctx.previous_relax_pk = Int(prev_rlx_pk)
         self.ctx.previous_shear_strain_ratio = None
         self.ctx.original_structure = None
         self.ctx.structure = None
         self.ctx.count = 0
+        self.ctx.steps_info = {}
+
+    def set_shear_ratios(self):
+        self.report("# -----------------")
+        self.report("# Set shear ratios.")
+        self.report("# -----------------")
+        return_vals = store_shear_ratios(self.inputs.twinboundary_shear_conf)
+        num = len(self.inputs.twinboundary_shear_conf['shear_strain_ratios'])
+        for i in range(num):
+            label = 'ratio_%03d' % (i+1)
+            self.ctx.ratios.append(return_vals[label])
+        self.report("# Total shear ratios: %d" % num)
+        self.report("# Shear ratios: {}".format(
+            [ r.value for r in self.ctx.ratios ]))
 
     def update_vals(self):
+        self.report("# --------------------------")
+        self.report("# Update latest calculation.")
+        self.report("# --------------------------")
         self.ctx.previous_shear_strain_ratio = self.ctx.ratios[self.ctx.count]
         self.ctx.count += 1
 
     def is_run_next_step(self):
-        return self.ctx.count < len(self.ctx.ratios)
+        self.report("# -------------------------------------------")
+        self.report("# Check all relax calculations have finished.")
+        self.report("# -------------------------------------------")
+        bl = self.ctx.count < len(self.ctx.ratios)
+        if bl:
+            self.report("# Not have finished.")
+            self.report("# Start relax (count: %d)." % (self.ctx.count+1))
+        else:
+            self.report("# All relax calculations have finished.")
+        return bl
 
     def terminate(self):
-        self.report('#-----------------------------------------------------')
-        self.report('# TwinBoundaryShearWorkChain has finished successfully')
-        self.report('#-----------------------------------------------------')
-        self.report('all jobs have finished')
-        self.report('terminate ShearWorkChain')
+        self.report("# -----------------------------------------------------")
+        self.report("# TwinBoundaryShearWorkChain has finished successfully.")
+        self.report("# -----------------------------------------------------")
+        self.out('steps_info', Dict(dict=self.ctx.steps_info))
+        self.report("# Terminate TwinBoundaryShearWorkChain.")
 
     def create_twinboundary_shear_structure(self):
-        self.report('#-------------------------------------')
-        self.report('# create twinboundary sheare structure')
-        self.report('#-------------------------------------')
+        self.report("# -------------------------------------")
+        self.report("# Create twinboundary sheare structure.")
+        self.report("# -------------------------------------")
 
         if self.ctx.previous_shear_strain_ratio is None:
             return_vals = get_twinboundary_shear_structure(
@@ -121,22 +143,14 @@ class TwinBoundaryShearWorkChain(WorkChain):
         self.ctx.kpoints = \
                 return_vals['kpoints']
 
-    # def create_kpoints(self):
-    #     self.report('#---------------')
-    #     self.report('# create kpoints')
-    #     self.report('#---------------')
-    #     self.ctx.kpoints = get_kpoints_from_interval(
-    #             structure=self.ctx.structure,
-    #             interval=self.ctx.interval)
-
     def run_relax(self):
-        self.report('#------------------------------')
-        self.report('# run relax calculations')
-        self.report('#------------------------------')
+        self.report('# ----------')
+        self.report('# Run relax.')
+        self.report('# ----------')
         label = 'twinboundary_shear_%03d' % (self.ctx.count+1)
+        ratio = self.ctx.ratios[self.ctx.count]
         relax_label = 'rlx_' + label
-        relax_description = relax_label + ", ratio: %f" \
-                % self.ctx.ratios[self.ctx.count]
+        relax_description = relax_label + ", ratio: %f" % ratio
         builder = get_calcjob_builder_for_twinboundary_shear(
                 label=relax_label,
                 description=relax_description,
@@ -149,39 +163,8 @@ class TwinBoundaryShearWorkChain(WorkChain):
         self.report('{} relax workflow has submitted, pk: {}'.format(
             relax_label, future.pk))
         self.to_context(**{relax_label: future})
+        self.ctx.steps_info[label] ={
+                'shear_strain_ratio': ratio,
+                'relax_pk': future.pk,
+                }
         self.ctx.previous_relax_pk = Int(future.pk)
-
-    # def create_energies(self):
-    #     self.report('#----------------')
-    #     self.report('# collect results')
-    #     self.report('#----------------')
-    #     rlx_results = {}
-    #     for i in range(len(self.ctx.ratios)):
-    #         label = 'twinboundaryshear_%03d' % i
-    #         relax_label = 'rlx_' + label
-    #         rlx_results[relax_label] = self.ctx[relax_label].outputs.misc
-    #     return_vals = collect_twinboundary_shear_results(**rlx_results)
-    #     self.out('relax_results', return_vals['relax_results'])
-
-    # def run_phonon(self):
-    #     self.report('#-----------')
-    #     self.report('# run phonon')
-    #     self.report('#-----------')
-    #     for i, ratio in enumerate(self.ctx.ratios):
-    #         label = 'twinboundaryshear_%03d' % i
-    #         relax_label = 'rlx_' + label
-    #         phonon_label = 'ph_' + label
-    #         phonon_description = phonon_label + ", ratio: %f" % ratio
-    #         structure = self.ctx[relax_label].outputs.relax__structure
-    #         builder = get_calcjob_builder(
-    #                 label=phonon_label,
-    #                 description=phonon_description,
-    #                 calc_type='phonon',
-    #                 computer=self.inputs.computer,
-    #                 structure=structure,
-    #                 calculator_settings=self.inputs.calculator_settings
-    #                 )
-    #         future = self.submit(builder)
-    #         self.report('{} phonopy workflow has submitted, pk: {}'
-    #                 .format(phonon_label, future.pk))
-    #         self.to_context(**{phonon_label: future})

@@ -7,8 +7,6 @@ This module provides aiida workflow builder.
 from typing import Union
 import warnings
 from twinpy.interfaces.aiida.vasp import AiidaRelaxWorkChain
-from twinpy.interfaces.aiida.twinboundary \
-        import AiidaTwinBoudnaryRelaxWorkChain
 from aiida.common.extendeddicts import AttributeDict
 from aiida.orm import (load_node, Code, Bool, Dict,
                        Float, Int, Str, StructureData, KpointsData)
@@ -57,16 +55,13 @@ def get_calcjob_builder_for_twinboundary_shear(label:str,
                                                kpoints:KpointsData,
                                                twinboundary_shear_conf):
     conf = dict(twinboundary_shear_conf)
-    aiida_twinboundary = AiidaTwinBoudnaryRelaxWorkChain(
-            load_node(conf['twinboundary_relax_pk']))
-    aiida_relax = \
-            AiidaRelaxWorkChain(load_node(conf['additional_relax_pks'][-1]))
-
-    if conf['additional_relax_pks'] is None:
-        rlx_pk = aiida_twinboundary.get_pks()['relax_pk']
-    else:
+    if 'additional_relax_pks' in conf and conf['additional_relax_pks']:
         rlx_pk = conf['additional_relax_pks'][-1]
+    else:
+        rlx_pk = load_node(conf['twinboundary_relax_pk']).called[-1].pk
+
     rlx_node = load_node(rlx_pk)
+    aiida_relax = AiidaRelaxWorkChain(rlx_node)
     builder = rlx_node.get_builder_restart()
     builder.options = _get_options(**twinboundary_shear_conf['options'])
     builder.kpoints = kpoints
@@ -81,11 +76,9 @@ def get_calcjob_builder_for_twinboundary_shear(label:str,
     builder.relax.positions = Bool(True)
     builder.relax.shape = Bool(False)
     builder.relax.volume = Bool(False)
-    builder.relax.convergence_positions = Float(1e-5)
+    builder.relax.convergence_positions = Float(1e-4)
     builder.relax.force_cutoff = \
             Float(aiida_relax.get_max_force())
-
-    # fix queue
 
     return builder
 
