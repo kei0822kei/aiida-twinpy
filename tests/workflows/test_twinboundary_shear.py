@@ -25,7 +25,7 @@ def test_TwinBoundaryShearWorkChain(env_parameters,
     builder = wf.get_builder()
     builder.computer = Str(env_parameters['computer'])
     builder.twinboundary_shear_conf = Dict(dict=twinboundary_shear_conf)
-    builder.metadata.label = 'test TwinBoundaryRelaxWorkChain (%s)' % datetime_now
+    builder.metadata.label = 'test TwinBoundaryShearWorkChain (%s)' % datetime_now
     future = submit(builder)
     test_group.add_nodes(load_node(future.pk))
     print("")
