@@ -110,6 +110,7 @@ def default_twinboundary_relax_conf() -> dict:
         'yshift': 0.,
         'shear_strain_ratio': 0.,
         'expansion_ratios': [1., 1., 1.2],
+        'make_tb_flat': False,
         }
 
     return twinboundary_relax_conf
