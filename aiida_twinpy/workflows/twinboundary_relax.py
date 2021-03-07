@@ -114,7 +114,6 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
         self.ctx.computer = self.inputs.computer
         self.ctx.kpt_conf = self.inputs.kpoints_conf
         self.ctx.tb_structure = None
-        self.report("# Finish.")
 
     def terminate(self):
         """
@@ -159,7 +158,6 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
         self.ctx.tb_structure = return_vals['twinboundary']
         self.out('twinboundary_parameters',
                  return_vals['twinboundary_parameters'])
-        self.report("# Finish.")
 
     def fix_kpoints_by_kpoints_interval(self):
         """
@@ -181,7 +179,6 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
         self.report("# To:")
         self.report("#     {}".format(
             self.ctx.calc_settings['relax']['kpoints']))
-        self.report("# Finish.")
 
     def run_relax(self):
         self.report("# -----------------------")
@@ -202,7 +199,6 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
             relax_label, future.pk))
         self.to_context(**{relax_label: future})
         self.ctx.relax = future
-        self.report("# Finish.")
 
     def extract_final_structure(self):
         self.report("# ------------------------")
@@ -210,4 +206,3 @@ class TwinBoundaryRelaxWorkChain(WorkChain):
         self.report("# ------------------------")
         self.out('final_structure',
                  self.ctx.relax.outputs.relax__structure)
-        self.report("# Finish.")

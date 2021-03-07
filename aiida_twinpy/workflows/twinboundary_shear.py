@@ -118,9 +118,9 @@ class TwinBoundaryShearWorkChain(WorkChain):
         self.report("# Terminate TwinBoundaryShearWorkChain.")
 
     def create_twinboundary_shear_structure(self):
-        self.report("# -------------------------------------")
-        self.report("# Create twinboundary sheare structure.")
-        self.report("# -------------------------------------")
+        self.report("# ------------------------------------")
+        self.report("# Create twinboundary shear structure.")
+        self.report("# ------------------------------------")
 
         if self.ctx.previous_shear_strain_ratio is None:
             return_vals = get_twinboundary_shear_structure(
@@ -142,6 +142,12 @@ class TwinBoundaryShearWorkChain(WorkChain):
                 return_vals['twinboundary_shear_structure']
         self.ctx.kpoints = \
                 return_vals['kpoints']
+        self.report("# Kpoints fixed from:")
+        self.report(
+                "# {}".format(return_vals['kpoints_orig'].get_kpoints_mesh()))
+        self.report("# To:")
+        self.report(
+                "# {}".format(return_vals['kpoints'].get_kpoints_mesh()))
 
     def run_relax(self):
         self.report('# ----------')
