@@ -157,7 +157,7 @@ def get_twinboundary_structure(structure:StructureData,
         >>> # following settings are automatically set
         >>> get_lattice = False
         >>> move_atoms_into_unitcell = True
-        >>> to_primitive = True
+        >>> to_primitive = False
         >>> no_idealize = False
         >>> symprec = 1e-5
         >>> no_sort = True
@@ -166,7 +166,7 @@ def get_twinboundary_structure(structure:StructureData,
     conf = {
         'get_lattice': False,
         'move_atoms_into_unitcell': True,
-        'to_primitive': True,
+        'to_primitive': False,
         'no_idealize': False,
         'symprec': 1e-5,
         'no_sort': True,
