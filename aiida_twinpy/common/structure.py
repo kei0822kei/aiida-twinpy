@@ -151,12 +151,13 @@ def get_twinboundary_structure(structure:StructureData,
         >>>     'yshift': 0.,
         >>>     'shear_strain_ratio': 0.,
         >>>     'expansion_ratios': [1., 1., 1.2],
+        >>>     'make_tb_flat': True,
         >>>     })
 
         >>> # following settings are automatically set
         >>> get_lattice = False
         >>> move_atoms_into_unitcell = True
-        >>> to_primitive = True
+        >>> to_primitive = False
         >>> no_idealize = False
         >>> symprec = 1e-5
         >>> no_sort = True
@@ -165,7 +166,7 @@ def get_twinboundary_structure(structure:StructureData,
     conf = {
         'get_lattice': False,
         'move_atoms_into_unitcell': True,
-        'to_primitive': True,
+        'to_primitive': False,
         'no_idealize': False,
         'symprec': 1e-5,
         'no_sort': True,
@@ -183,6 +184,7 @@ def get_twinboundary_structure(structure:StructureData,
                             delta=conf['delta'],
                             shear_strain_ratio=conf['shear_strain_ratio'],
                             expansion_ratios=conf['expansion_ratios'],
+                            make_tb_flat=conf['make_tb_flat'],
                             )
     std = twinpy.get_twinboundary_standardize(
             get_lattice=conf['get_lattice'],

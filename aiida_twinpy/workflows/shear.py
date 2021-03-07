@@ -141,7 +141,6 @@ class ShearWorkChain(WorkChain):
         self.report("# Input kpoints:")
         self.report("#     {}".format(
             self.ctx.calc_settings['relax']['kpoints']))
-        self.report("# Finish.")
 
     def terminate_dry_run(self):
         self.report("# ----------------------")
@@ -177,7 +176,6 @@ class ShearWorkChain(WorkChain):
         self.out('shear_strain_ratios', return_vals['shear_settings'])
         self.report("# Total shear ratios: %d" % len(self.ctx.ratios))
         self.report("# Shear ratios: {}".format(self.ctx.ratios))
-        self.report("# Finish.")
 
     def run_relax(self):
         self.report('# -----------------------')
@@ -203,7 +201,6 @@ class ShearWorkChain(WorkChain):
             self.report('# {} relax workflow has submitted, pk: {}'.format(
                 relax_label, future.pk))
             self.to_context(**{relax_label: future})
-        self.report("# Finish.")
 
     def collect_results(self):
         self.report('#-----------------')
@@ -216,7 +213,6 @@ class ShearWorkChain(WorkChain):
             rlx_results[relax_label] = self.ctx[relax_label].outputs.misc
         return_vals = collect_relax_results(**rlx_results)
         self.out('relax_results', return_vals['relax_results'])
-        self.report("# Finish.")
 
     def _fix_kpoints(self, structure, calc_type):
         return_vals = fix_kpoints(
@@ -254,4 +250,3 @@ class ShearWorkChain(WorkChain):
             self.report('# {} phonopy workflow has submitted, pk: {}'.format(
                 phonon_label, future.pk))
             self.to_context(**{phonon_label: future})
-        self.report("# Finish.")
