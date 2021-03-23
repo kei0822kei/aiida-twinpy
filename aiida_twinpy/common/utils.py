@@ -5,16 +5,6 @@ from aiida.orm import Float, Dict
 
 
 @calcfunction
-def store_shear_ratios(twinboundary_shear_conf):
-    shear_ratios = twinboundary_shear_conf['shear_strain_ratios']
-    return_vals = {}
-    for i, ratio in enumerate(shear_ratios):
-        label = 'ratio_%03d' % (i+1)
-        return_vals[label] = Float(ratio)
-    return return_vals
-
-
-@calcfunction
 def collect_relax_results(**rlx_results):
     return_vals = {}
     energies = []

@@ -223,7 +223,6 @@ def get_twinboundary_structure(structure:StructureData,
 def get_twinboundary_shear_structure(twinboundary_shear_conf,
                                      shear_strain_ratio,
                                      previous_relax_pk,
-                                     previous_shear_strain_ratio=None,
                                      previous_original_structure=None):
     """
     If latest_structure is None, use s=0 structure as the original
@@ -247,7 +246,7 @@ def get_twinboundary_shear_structure(twinboundary_shear_conf,
                 aiida_twinboundary_relax.get_twinboundary_analyzer()
         kpt_info = aiida_rlx.get_kpoints_info()
 
-    if previous_shear_strain_ratio is None:
+    if shear_strain_ratio.value == conf['shear_strain_ratios'][0]:
         orig_cell = twinboundary_analyzer.get_shear_cell(
                 shear_strain_ratio=shear_strain_ratio.value,
                 is_standardize=False)
