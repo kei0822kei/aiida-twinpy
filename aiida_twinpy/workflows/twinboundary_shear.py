@@ -5,9 +5,8 @@ This module provides TwinBoundaryShearWorkChain.
 """
 
 from aiida.engine import WorkChain, while_
-from aiida.orm import load_node, Int, Str, Dict
+from aiida.orm import load_node, Float, Int, Str, Dict
 from aiida_twinpy.common.structure import get_twinboundary_shear_structure
-from aiida_twinpy.common.utils import store_shear_ratios
 from aiida_twinpy.common.builder import (
         get_calcjob_builder_for_twinboundary_shear)
 
@@ -45,7 +44,6 @@ class TwinBoundaryShearWorkChain(WorkChain):
             """)
         spec.outline(
             cls.initialize,
-            cls.set_shear_ratios,
             while_(cls.is_run_next_step)(
                 cls.create_twinboundary_shear_structure,
                 cls.run_relax,
@@ -61,7 +59,6 @@ class TwinBoundaryShearWorkChain(WorkChain):
         self.report("# ---------------------------------")
         self.report("# Start TwinBoundaryShearWorkChain.")
         self.report("# ---------------------------------")
-        self.ctx.ratios = []
         conf = self.inputs.twinboundary_shear_conf.get_dict()
         if 'additional_relax_pks' in conf and conf['additional_relax_pks']:
             prev_rlx_pk = conf['additional_relax_pks'][-1]
@@ -69,30 +66,19 @@ class TwinBoundaryShearWorkChain(WorkChain):
             self.report("# There is no additional_relax_pks.")
             prev_rlx_pk = load_node(conf['twinboundary_relax_pk']).called[-1].pk
 
+        self.ctx.computer = self.inputs.computer
+        self.ctx.conf = self.inputs.twinboundary_shear_conf
+        self.ctx.ratios = conf['shear_strain_ratios']
         self.ctx.previous_relax_pk = prev_rlx_pk
-        self.ctx.previous_shear_strain_ratio = None
         self.ctx.original_structure = None
         self.ctx.structure = None
         self.ctx.count = 0
-
-    def set_shear_ratios(self):
-        self.report("# -----------------")
-        self.report("# Set shear ratios.")
-        self.report("# -----------------")
-        return_vals = store_shear_ratios(self.inputs.twinboundary_shear_conf)
-        num = len(self.inputs.twinboundary_shear_conf['shear_strain_ratios'])
-        for i in range(num):
-            label = 'ratio_%03d' % (i+1)
-            self.ctx.ratios.append(return_vals[label])
-        self.report("# Total shear ratios: %d" % num)
-        self.report("# Shear ratios: {}".format(
-            [ r.value for r in self.ctx.ratios ]))
+        self.report("# Shear strain ratios: {}".format(self.ctx.ratios))
 
     def update_vals(self):
         self.report("# --------------------------")
         self.report("# Update latest calculation.")
         self.report("# --------------------------")
-        self.ctx.previous_shear_strain_ratio = self.ctx.ratios[self.ctx.count]
         self.ctx.count += 1
 
     def is_run_next_step(self):
@@ -118,17 +104,16 @@ class TwinBoundaryShearWorkChain(WorkChain):
         self.report("# Create twinboundary shear structure.")
         self.report("# ------------------------------------")
 
-        if self.ctx.previous_shear_strain_ratio is None:
+        if self.ctx.count == 0:
             return_vals = get_twinboundary_shear_structure(
-              twinboundary_shear_conf=self.inputs.twinboundary_shear_conf,
-              shear_strain_ratio=self.ctx.ratios[self.ctx.count],
+              twinboundary_shear_conf=self.ctx.conf,
+              shear_strain_ratio=Float(self.ctx.ratios[self.ctx.count]),
               previous_relax_pk=Int(self.ctx.previous_relax_pk))
         else:
             return_vals = get_twinboundary_shear_structure(
-              twinboundary_shear_conf=self.inputs.twinboundary_shear_conf,
-              shear_strain_ratio=self.ctx.ratios[self.ctx.count],
+              twinboundary_shear_conf=self.ctx.conf,
+              shear_strain_ratio=Float(self.ctx.ratios[self.ctx.count]),
               previous_relax_pk=Int(self.ctx.previous_relax_pk),
-              previous_shear_strain_ratio=self.ctx.previous_shear_strain_ratio,
               previous_original_structure=self.ctx.original_structure)
 
         self.ctx.original_structure = \
@@ -155,10 +140,10 @@ class TwinBoundaryShearWorkChain(WorkChain):
         builder = get_calcjob_builder_for_twinboundary_shear(
                 label=relax_label,
                 description=relax_description,
-                computer=self.inputs.computer,
+                computer=self.ctx.computer,
                 structure=self.ctx.structure,
                 kpoints=self.ctx.kpoints,
-                twinboundary_shear_conf=self.inputs.twinboundary_shear_conf,
+                twinboundary_shear_conf=self.ctx.conf,
                 )
         future = self.submit(builder)
         self.report('{} relax workflow has submitted, pk: {}'.format(
