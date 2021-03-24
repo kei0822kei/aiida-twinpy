@@ -4,7 +4,6 @@
 This module provides ShearWorkChain.
 """
 
-from copy import deepcopy
 from aiida.engine import WorkChain, if_
 from aiida.orm import Bool, Float, Str, Dict, StructureData
 from aiida_twinpy.common.structure import get_shear_structures
@@ -136,7 +135,6 @@ class ShearWorkChain(WorkChain):
         self.ctx.hex_structure = self.inputs.structure
         self.ctx.shr_conf = self.inputs.shear_conf
         self.ctx.calc_settings = self.inputs.calculator_settings
-        self.ctx.calc_settings_phn = deepcopy(self.ctx.calc_settings)
         self.ctx.kpt_conf = self.inputs.kpoints_conf
         self.ctx.ratios = None
         self.ctx.shears = None
@@ -215,6 +213,7 @@ class ShearWorkChain(WorkChain):
             rlx_results[relax_label] = self.ctx[relax_label].outputs.misc
         return_vals = collect_relax_results(**rlx_results)
         self.out('relax_results', return_vals['relax_results'])
+        self.report("# Finished.")
 
     def _fix_kpoints(self, structure, calc_type):
         return_vals = fix_kpoints(
@@ -245,9 +244,10 @@ class ShearWorkChain(WorkChain):
                     calc_type='phonon',
                     computer=self.ctx.computer,
                     structure=structure,
-                    calculator_settings=self.ctx.calc_settings_phn,
+                    calculator_settings=self.ctx.calc_settings,
                     )
             future = self.submit(builder)
             self.report('# {} phonopy workflow has submitted, pk: {}'.format(
                 phonon_label, future.pk))
             self.to_context(**{phonon_label: future})
+        self.report('# Finished all phonon calculations.')
