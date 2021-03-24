@@ -213,12 +213,13 @@ class ShearWorkChain(WorkChain):
             rlx_results[relax_label] = self.ctx[relax_label].outputs.misc
         return_vals = collect_relax_results(**rlx_results)
         self.out('relax_results', return_vals['relax_results'])
+        self.report("# Finished.")
 
     def _fix_kpoints(self, structure, calc_type):
         return_vals = fix_kpoints(
                 calculator_settings=self.ctx.calc_settings,
                 structure=structure,
-                kpoints_conf = self.ctx.kpt_conf,
+                kpoints_conf=self.ctx.kpt_conf,
                 is_phonon=Bool(calc_type=='phonon'))
         self.ctx.calc_settings = \
                 return_vals['calculator_settings']
@@ -229,7 +230,6 @@ class ShearWorkChain(WorkChain):
         self.report('#------------')
         self.report('# Run phonon.')
         self.report('#------------')
-        self.ctx.calc_settings = self.inputs.calculator_settings
         for i, ratio in enumerate(self.ctx.ratios):
             label = 'shear_%03d' % i
             relax_label = 'rlx_' + label
@@ -244,9 +244,10 @@ class ShearWorkChain(WorkChain):
                     calc_type='phonon',
                     computer=self.ctx.computer,
                     structure=structure,
-                    calculator_settings=self.ctx.calc_settings
+                    calculator_settings=self.ctx.calc_settings,
                     )
             future = self.submit(builder)
             self.report('# {} phonopy workflow has submitted, pk: {}'.format(
                 phonon_label, future.pk))
             self.to_context(**{phonon_label: future})
+        self.report('# Finished all phonon calculations.')
