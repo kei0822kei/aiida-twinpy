@@ -136,7 +136,7 @@ class ShearWorkChain(WorkChain):
         self.ctx.hex_structure = self.inputs.structure
         self.ctx.shr_conf = self.inputs.shear_conf
         self.ctx.calc_settings = self.inputs.calculator_settings
-        self.ctx.calc_settings_phn = deepcopy(self.ctx.calculator_settings)
+        self.ctx.calc_settings_phn = deepcopy(self.ctx.calc_settings)
         self.ctx.kpt_conf = self.inputs.kpoints_conf
         self.ctx.ratios = None
         self.ctx.shears = None
