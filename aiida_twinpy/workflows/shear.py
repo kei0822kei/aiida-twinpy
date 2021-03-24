@@ -4,6 +4,7 @@
 This module provides ShearWorkChain.
 """
 
+from copy import deepcopy
 from aiida.engine import WorkChain, if_
 from aiida.orm import Bool, Float, Str, Dict, StructureData
 from aiida_twinpy.common.structure import get_shear_structures
@@ -135,6 +136,7 @@ class ShearWorkChain(WorkChain):
         self.ctx.hex_structure = self.inputs.structure
         self.ctx.shr_conf = self.inputs.shear_conf
         self.ctx.calc_settings = self.inputs.calculator_settings
+        self.ctx.calc_settings_phn = deepcopy(self.ctx.calculator_settings)
         self.ctx.kpt_conf = self.inputs.kpoints_conf
         self.ctx.ratios = None
         self.ctx.shears = None
@@ -229,7 +231,6 @@ class ShearWorkChain(WorkChain):
         self.report('#------------')
         self.report('# Run phonon.')
         self.report('#------------')
-        self.ctx.calc_settings = self.inputs.calculator_settings
         for i, ratio in enumerate(self.ctx.ratios):
             label = 'shear_%03d' % i
             relax_label = 'rlx_' + label
@@ -244,7 +245,7 @@ class ShearWorkChain(WorkChain):
                     calc_type='phonon',
                     computer=self.ctx.computer,
                     structure=structure,
-                    calculator_settings=self.ctx.calc_settings
+                    calculator_settings=self.ctx.calc_settings_phn,
                     )
             future = self.submit(builder)
             self.report('# {} phonopy workflow has submitted, pk: {}'.format(
