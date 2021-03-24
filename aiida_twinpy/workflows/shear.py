@@ -220,7 +220,7 @@ class ShearWorkChain(WorkChain):
         return_vals = fix_kpoints(
                 calculator_settings=self.ctx.calc_settings,
                 structure=structure,
-                kpoints_conf = self.ctx.kpt_conf,
+                kpoints_conf=self.ctx.kpt_conf,
                 is_phonon=Bool(calc_type=='phonon'))
         self.ctx.calc_settings = \
                 return_vals['calculator_settings']
