@@ -5,7 +5,7 @@ This module provides TwinBoundaryShearWorkChain.
 """
 
 from aiida.engine import WorkChain, while_
-from aiida.orm import load_node, Float, Int, Str, Dict
+from aiida.orm import load_node, Float, Int, Str, StructureData, Dict
 from aiida_twinpy.common.structure import get_twinboundary_shear_structure
 from aiida_twinpy.common.builder import (
         get_calcjob_builder_for_twinboundary_shear)
@@ -19,8 +19,6 @@ class TwinBoundaryShearWorkChain(WorkChain):
         workflow is as follows
 
         >>> twinboundary_shear_conf = Dict(dict={
-        >>>     'twinboundary_relax_pk': 11111,
-        >>>     'additional_relax_pks': [11112, 11113],
         >>>     'shear_strain_ratios': [0.01, 0.02],
         >>>     'options': {'queue_name': 'vega-a',
         >>>                 'max_wallclock_sseconds': 100 * 3600},
@@ -35,13 +33,28 @@ class TwinBoundaryShearWorkChain(WorkChain):
                    help="""
             Computer.
             """)
+        spec.input('twinboundary_relax_structure',
+                   valid_type=StructureData,
+                   required=True,
+                   help="""
+            TwinBoundaryRelaxWorkChain.
+            """)
         spec.input('twinboundary_shear_conf',
                    valid_type=Dict,
                    required=True,
                    help="""
-            Twinboundary shear config. For more detail,
-            see aiida_twinpy.common.structure.get_twinboundary_shear_structure.
+            Twinboundary shear config. You can find sample in the docstring of
+            this class.
             """)
+        for i in range(20):
+            spec.input('additional_relax.structure_%02d' % (i+1),
+                       valid_type=StructureData,
+                       required=False,
+                       help="""
+                Additional relax strcutures. Input starts from
+                'additional_relax.structure_01', 'additional.relax_02' ... .
+                """)
+
         spec.outline(
             cls.initialize,
             while_(cls.is_run_next_step)(
@@ -59,27 +72,39 @@ class TwinBoundaryShearWorkChain(WorkChain):
         self.report("# ---------------------------------")
         self.report("# Start TwinBoundaryShearWorkChain.")
         self.report("# ---------------------------------")
-        conf = self.inputs.twinboundary_shear_conf.get_dict()
-        if 'additional_relax_pks' in conf and conf['additional_relax_pks']:
-            prev_rlx_pk = conf['additional_relax_pks'][-1]
-        else:
-            self.report("# There is no additional_relax_pks.")
-            prev_rlx_pk = load_node(conf['twinboundary_relax_pk']).called[-1].pk
+        additional_relax_structures = {}
+        for i in range(20):
+            try:
+                label = 'structure_%02d' % (i+1)
+                structure = self.inputs.additional_relax.__getattr__(label)
+                new_label = 'additional_' + label
+                additional_relax_structures[new_label] = structure
+            except AttributeError:
+                self.report("# Read %d additional relax structures." % i)
+                break
 
+        conf = self.inputs.twinboundary_shear_conf.get_dict()
         self.ctx.computer = self.inputs.computer
+        self.ctx.twinboundary_relax_structure = \
+            self.inputs.twinboundary_relax_structure
         self.ctx.conf = self.inputs.twinboundary_shear_conf
         self.ctx.ratios = conf['shear_strain_ratios']
-        self.ctx.previous_relax_pk = prev_rlx_pk
-        self.ctx.original_structure = None
+        self.ctx.additional_relax_structures = additional_relax_structures
         self.ctx.structure = None
         self.ctx.count = 0
+        self.ctx.previous_relax_pk = None
+        self.ctx.previous_relax_structure = None
         self.report("# Shear strain ratios: {}".format(self.ctx.ratios))
 
     def update_vals(self):
         self.report("# --------------------------")
         self.report("# Update latest calculation.")
         self.report("# --------------------------")
+        self.report("# Update count.")
         self.ctx.count += 1
+        self.report("# Update previous relax structure.")
+        self.ctx.previous_relax_structure = \
+                load_node(self.ctx.previous_relax_pk).outputs.relax__structure
 
     def is_run_next_step(self):
         self.report("# -------------------------------------------")
@@ -104,20 +129,20 @@ class TwinBoundaryShearWorkChain(WorkChain):
         self.report("# Create twinboundary shear structure.")
         self.report("# ------------------------------------")
 
-        if self.ctx.count == 0:
-            return_vals = get_twinboundary_shear_structure(
-              twinboundary_shear_conf=self.ctx.conf,
-              shear_strain_ratio=Float(self.ctx.ratios[self.ctx.count]),
-              previous_relax_pk=Int(self.ctx.previous_relax_pk))
-        else:
-            return_vals = get_twinboundary_shear_structure(
-              twinboundary_shear_conf=self.ctx.conf,
-              shear_strain_ratio=Float(self.ctx.ratios[self.ctx.count]),
-              previous_relax_pk=Int(self.ctx.previous_relax_pk),
-              previous_original_structure=self.ctx.original_structure)
+        kwargs = {
+            'twinboundary_relax_structure': self.ctx.twinboundary_relax_structure,
+            'shear_strain_ratio': Float(self.ctx.ratios[self.ctx.count]),
+            }
+        kwargs.update(self.ctx.additional_relax_structures)
+        if self.ctx.count > 0:
+            kwargs.update({
+                'previous_relax_structure': self.ctx.previous_relax_structure,
+                })
 
-        self.ctx.original_structure = \
-                return_vals['twinboundary_shear_structure_orig']
+        return_vals = get_twinboundary_shear_structure(**kwargs)
+
+        # self.ctx.original_structure = \
+        #         return_vals['twinboundary_shear_structure_orig']
         self.ctx.structure = \
                 return_vals['twinboundary_shear_structure']
         self.ctx.kpoints = \

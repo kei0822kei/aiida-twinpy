@@ -7,7 +7,10 @@ This module creates shear structure and twin boundary structure.
 from typing import Union
 import numpy as np
 from aiida.engine import calcfunction
-from aiida.orm import Dict, Float, Int, KpointsData, StructureData, load_node
+from aiida.orm import (CalcFunctionNode, Dict, Float, Int, KpointsData, Node,
+                       StructureData)
+from aiida.plugins import WorkflowFactory
+from aiida_twinpy.common.utils import get_create_node
 from twinpy.api_twinpy import get_twinpy_from_cell
 from twinpy.interfaces.aiida.base import (get_aiida_structure,
                                           get_cell_from_aiida)
@@ -220,54 +223,68 @@ def get_twinboundary_structure(structure:StructureData,
 
 
 @calcfunction
-def get_twinboundary_shear_structure(twinboundary_shear_conf,
+def get_twinboundary_shear_structure(twinboundary_relax_structure,
                                      shear_strain_ratio,
-                                     previous_relax_pk,
-                                     previous_original_structure=None):
+                                     previous_relax_structure=None,
+                                     **additional_relax_structures,
+                                     ):
     """
     If latest_structure is None, use s=0 structure as the original
-    structure to be sheared.
+    structure to be sheared. shear_strain_ratios must include zero.
+    additional_relaxes is AttributeDict.
     """
-    conf = twinboundary_shear_conf.get_dict()
-    aiida_twinboundary_relax = AiidaTwinBoudnaryRelaxWorkChain(
-            load_node(conf['twinboundary_relax_pk']))
+    relax_wf = WorkflowFactory('vasp.relax')
+    tb_relax_wf = WorkflowFactory('twinpy.twinboundary_relax')
 
-    if 'additional_relax_pks' in conf and conf['additional_relax_pks']:
-        aiida_rlx_col = aiida_twinboundary_relax.get_aiida_relax(
-                additional_relax_pks=conf['additional_relax_pks'])
-        twinboundary_analyzer = \
-                aiida_twinboundary_relax.get_twinboundary_analyzer(
-                    additional_relax_pks=conf['additional_relax_pks'])
-        kpt_info = aiida_rlx_col.aiida_relaxes[0].get_kpoints_info()
-    else:
-        aiida_rlx = aiida_twinboundary_relax.get_aiida_relax(
-                additional_relax_pks=conf['additional_relax_pks'])
-        twinboundary_analyzer = \
-                aiida_twinboundary_relax.get_twinboundary_analyzer()
+    ratio = shear_strain_ratio.value
+    tb_rlx_node = get_create_node(twinboundary_relax_structure.pk,
+                                   tb_relax_wf)
+    addi_rlx_pks = []
+    for i in range(len(additional_relax_structures)):
+        label = 'additional_structure_%02d' % (i+1)
+        structure_pk_ = additional_relax_structures[label].pk
+        rlx_pk = get_create_node(structure_pk_,
+                                  relax_wf).pk
+        addi_rlx_pks.append(rlx_pk)
+
+    aiida_twinboundary_relax = \
+            AiidaTwinBoudnaryRelaxWorkChain(tb_rlx_node)
+    aiida_rlx = aiida_twinboundary_relax.get_aiida_relax(
+                    additional_relax_pks=addi_rlx_pks)
+    tb_analyzer = \
+            aiida_twinboundary_relax.get_twinboundary_analyzer(
+                additional_relax_pks=addi_rlx_pks)
+
+    if addi_rlx_pks == []:
         kpt_info = aiida_rlx.get_kpoints_info()
+    else:
+        kpt_info = aiida_rlx.aiida_relaxes[0].get_kpoints_info()
 
-    if shear_strain_ratio.value == conf['shear_strain_ratios'][0]:
-        orig_cell = twinboundary_analyzer.get_shear_cell(
-                shear_strain_ratio=shear_strain_ratio.value,
+    if previous_relax_structure is None:
+        orig_cell = tb_analyzer.get_shear_cell(
+                shear_strain_ratio=ratio,
                 is_standardize=False)
-        cell = twinboundary_analyzer.get_shear_cell(
-            shear_strain_ratio=shear_strain_ratio.value,
+        cell = tb_analyzer.get_shear_cell(
+            shear_strain_ratio=ratio,
             is_standardize=True)
     else:
-        previous_original_cell = get_cell_from_aiida(
-                previous_original_structure)
-        previous_aiida_relax = AiidaRelaxWorkChain(
-                load_node(previous_relax_pk.value))
-        previous_relax_analyzer = previous_aiida_relax.get_relax_analyzer(
-                original_cell=previous_original_cell)
+        prev_rlx_node = get_create_node(previous_relax_structure.pk, relax_wf)
+        create_tb_shr_node = get_create_node(prev_rlx_node.inputs.structure.pk,
+                                             CalcFunctionNode)
+        prev_orig_structure = \
+                create_tb_shr_node.outputs.twinboundary_shear_structure_orig
+        prev_orig_cell = get_cell_from_aiida(prev_orig_structure)
+        prev_aiida_rlx = AiidaRelaxWorkChain(prev_rlx_node)
+        prev_rlx_analyzer = prev_aiida_rlx.get_relax_analyzer(
+                original_cell=prev_orig_cell)
         atom_positions = \
-                previous_relax_analyzer.final_cell_in_original_frame[1]
-        orig_cell = twinboundary_analyzer.get_shear_cell(
-                shear_strain_ratio=shear_strain_ratio.value,
+                prev_rlx_analyzer.final_cell_in_original_frame[1]
+        orig_cell = tb_analyzer.get_shear_cell(
+                shear_strain_ratio=ratio,
                 is_standardize=False,
                 atom_positions=atom_positions)
-        cell = twinboundary_analyzer.get_shear_cell(
-            shear_strain_ratio=shear_strain_ratio.value,
+        cell = tb_analyzer.get_shear_cell(
+            shear_strain_ratio=ratio,
             is_standardize=True,
             atom_positions=atom_positions)
 
@@ -278,9 +295,10 @@ def get_twinboundary_shear_structure(twinboundary_shear_conf,
     rlx_mesh = np.array(kpt_info['mesh'])
     rlx_offset = np.array(kpt_info['offset'])
     rlx_kpoints = (rlx_mesh, rlx_offset)
-    std_base = StandardizeCell(twinboundary_analyzer.relax_analyzer.original_cell)
-    orig_kpoints = std_base.convert_kpoints(kpoints=rlx_kpoints,
-                                            kpoints_type='primitive')['original']
+    std_base = StandardizeCell(tb_analyzer.relax_analyzer.original_cell)
+    orig_kpoints = std_base.convert_kpoints(
+            kpoints=rlx_kpoints,
+            kpoints_type='primitive')['original']
     std = StandardizeCell(orig_cell)
     kpoints = std.convert_kpoints(kpoints=orig_kpoints,
                                   kpoints_type='original')['primitive']
@@ -298,6 +316,8 @@ def get_twinboundary_shear_structure(twinboundary_shear_conf,
     return return_vals
 
 
+
+
 # @calcfunction
 # from aiida_twinpy.common.interfaces import get_phonon_from_aiida
 # def get_modulation_structures(modulation_conf):
@@ -308,7 +328,8 @@ def get_twinboundary_shear_structure(twinboundary_shear_conf,
 #         freq.append(phonon.get_frequencies(phonon_mode[0]).tolist())
 #     unitcell = phonon.get_unitcell().cell
 #     primitive = phonon.get_primitive().cell
-#     u2p = np.round(np.dot(np.linalg.inv(primitive.T), unitcell.T)).astype(int)
+#     u2p = np.round(np.dot(np.linalg.inv(primitive.T), unitcell.T)).astype(
+#         int)
 #     dimension = np.dot(u2p, conf['dimension'])
 #     phonon.set_modulations(dimension=dimension,
 #                            phonon_modes=conf['phonon_modes'])
