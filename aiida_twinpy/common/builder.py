@@ -8,11 +8,12 @@ from typing import Union
 import warnings
 from twinpy.interfaces.aiida.vasp import AiidaRelaxWorkChain
 from aiida.common.extendeddicts import AttributeDict
-from aiida.orm import (load_node, Code, Bool, Dict,
+from aiida.orm import (CalcFunctionNode, Code, Bool, Dict,
                        Float, Int, Str, StructureData, KpointsData)
 from aiida.plugins import WorkflowFactory
 from aiida import load_profile
 from aiida_twinpy.common.interfaces import get_vasp_settings_for_from_phonopy
+from aiida_twinpy.common.utils import get_create_node
 
 load_profile()
 
@@ -54,13 +55,11 @@ def get_calcjob_builder_for_twinboundary_shear(label:str,
                                                structure:StructureData,
                                                kpoints:KpointsData,
                                                twinboundary_shear_conf):
-    conf = dict(twinboundary_shear_conf)
-    if 'additional_relax_pks' in conf and conf['additional_relax_pks']:
-        rlx_pk = conf['additional_relax_pks'][-1]
-    else:
-        rlx_pk = load_node(conf['twinboundary_relax_pk']).called[-1].pk
-
-    rlx_node = load_node(rlx_pk)
+    relax_wf = WorkflowFactory('vasp.relax')
+    create_tb_shr_node = get_create_node(structure.pk, CalcFunctionNode)
+    rlx_node = get_create_node(
+            create_tb_shr_node.inputs.twinboundary_relax_structure.pk,
+            relax_wf)
     aiida_relax = AiidaRelaxWorkChain(rlx_node)
     builder = rlx_node.get_builder_restart()
     builder.options = _get_options(**twinboundary_shear_conf['options'])
