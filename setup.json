@@ -12,7 +12,7 @@
         "Natural Language :: English",
         "Framework :: AiiDA"
     ],
-    "version": "0.1.0a0",
+    "version": "1.0.0",
     "entry_points": {
         "aiida.workflows": [
             "twinpy.shear = aiida_twinpy.workflows.shear: ShearWorkChain",
