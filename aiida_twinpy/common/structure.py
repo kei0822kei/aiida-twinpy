@@ -1,10 +1,16 @@
 #!usr/bin/env python
 
+"""
+This module creates shear structure and twin boundary structure.
+"""
+
+from typing import Union
 import numpy as np
 from aiida.engine import calcfunction
-from aiida.orm import Dict, Float, Int, KpointsData, StructureData, load_node
-from aiida_twinpy.common.interfaces import get_phonon_from_aiida
-from aiida_phonopy.common.utils import phonopy_atoms_to_structure
+from aiida.orm import (CalcFunctionNode, Dict, Float, Int, KpointsData, Node,
+                       StructureData)
+from aiida.plugins import WorkflowFactory
+from aiida_twinpy.common.utils import get_create_node
 from twinpy.api_twinpy import get_twinpy_from_cell
 from twinpy.interfaces.aiida.base import (get_aiida_structure,
                                           get_cell_from_aiida)
@@ -16,20 +22,21 @@ from twinpy.structure.standardize import StandardizeCell
 
 @calcfunction
 def get_shear_structures(structure:StructureData,
-                         shear_conf:Dict):
+                         shear_conf:Union[dict,Dict]):
     """
     Get shear structure.
 
     Args:
-        structure (StructureData): aiida structure data
-        shear_conf (Dict): shear config
+        structure: Aiida structure data.
+        shear_conf: Shear config. They are parsed to Twinpy.set_shear.
 
     Examples:
-        Example of shear_conf
+        Example of shear_conf is as bellow.
 
         >>> shear_conf = Dict(dict={
         >>>     'twinmode': '10-12',
         >>>     'grids': 5,
+        >>>     'expansion_ratios': [1.2, 1.2, 0.9],
         >>>     })
 
         >>> # following settings are automatically set
@@ -67,8 +74,12 @@ def get_shear_structures(structure:StructureData,
     symprec = 1e-5
     no_sort = True
     get_sort_list = False
+    expansion_ratios = [1., 1., 1.]
 
     conf = dict(shear_conf)
+    if 'expansion_ratios' in conf:
+        expansion_ratios = conf['expansion_ratios']
+
     cell = get_cell_from_aiida(structure=structure,
                                get_scaled_positions=True)
     ratios = [ i / (int(conf['grids'])-1) for i in range(int(conf['grids'])) ]
@@ -83,6 +94,7 @@ def get_shear_structures(structure:StructureData,
                 yshift=yshift,
                 dim=dim,
                 shear_strain_ratio=ratio,
+                expansion_ratios=expansion_ratios,
                 is_primitive=is_primitive,
                 )
         std = twinpy.get_shear_standardize(
@@ -100,20 +112,20 @@ def get_shear_structures(structure:StructureData,
         vasp_input_structures.append(get_aiida_structure(cell=shear_std_cell))
 
     return_vals = {
-            'shear_settings': Dict(dict={'shear_ratios': ratios}),
+            'shear_settings': Dict(dict={'shear_strain_ratios': ratios}),
             'gamma': Float(twinpy._shear.get_gamma()),
             'total_structures': Int(len(ratios)),
             }
 
-    for i in range(len(ratios)):
+    for i, ratio in enumerate(ratios):
         shear_structure = shear_structures[i]
         shear_structure.label = 'shear_orig_%03d' % i
         shear_structure.description = 'shear_orig_%03d' % i \
-                                          + ' ratio: {}'.format(ratios[i])
+                                          + ' ratio: {}'.format(ratio)
         vasp_input_structure = vasp_input_structures[i]
         vasp_input_structure.label = 'shear_%03d' % i
         vasp_input_structure.description = 'shear_%03d' % i \
-                                          + ' ratio: {}'.format(ratios[i])
+                                          + ' ratio: {}'.format(ratio)
         return_vals[vasp_input_structure.label] = vasp_input_structure
         return_vals[shear_structure.label] = shear_structure
 
@@ -121,13 +133,14 @@ def get_shear_structures(structure:StructureData,
 
 
 @calcfunction
-def get_twinboundary_structure(structure, twinboundary_conf):
+def get_twinboundary_structure(structure:StructureData,
+                               twinboundary_conf:Dict):
     """
     Get twinboudary structure.
 
     Args:
-        structure (StructureData): aiida structure data
-        twinboundary_conf (Dict): shear config
+        structure (StructureData): Hexagonal structure.
+        twinboundary_conf (Dict): Twin boundary configuration.
 
     Examples:
         Example of twinboundary_conf.
@@ -136,41 +149,33 @@ def get_twinboundary_structure(structure, twinboundary_conf):
         >>>     'twinmode': '10-12',
         >>>     'twintype': 1,
         >>>     'layers': 9,
-        >>>     'delta': 0.06,
+        >>>     'delta': 0.,
         >>>     'xshift': 0.,
         >>>     'yshift': 0.,
         >>>     'shear_strain_ratio': 0.,
+        >>>     'expansion_ratios': [1., 1., 1.2],
+        >>>     'make_tb_flat': True,
         >>>     })
 
         >>> # following settings are automatically set
         >>> get_lattice = False
         >>> move_atoms_into_unitcell = True
-        >>> to_primitive = True
+        >>> to_primitive = False
         >>> no_idealize = False
         >>> symprec = 1e-5
         >>> no_sort = True
         >>> get_sort_list = False
     """
-    get_lattice = False
-    move_atoms_into_unitcell = True
-    to_primitive = True
-    no_idealize = False
-    symprec = 1e-5
-    no_sort = True
-    get_sort_list = False
-
-    parameters = {
-        'get_lattice': get_lattice,
-        'move_atoms_into_unitcell': move_atoms_into_unitcell,
-        'to_primitive': to_primitive,
-        'no_idealize': no_idealize,
-        'symprec': symprec,
-        'no_sort': no_sort,
-        'get_sort_list': get_sort_list,
+    conf = {
+        'get_lattice': False,
+        'move_atoms_into_unitcell': True,
+        'to_primitive': False,
+        'no_idealize': False,
+        'symprec': 1e-5,
+        'no_sort': True,
+        'get_sort_list': False,
         }
-    parameters.update(twinboundary_conf.get_dict())
-
-    conf = dict(twinboundary_conf)
+    conf.update(twinboundary_conf.get_dict())
     cell = get_cell_from_aiida(structure=structure,
                                get_scaled_positions=True)
     twinpy = get_twinpy_from_cell(cell=cell,
@@ -181,91 +186,119 @@ def get_twinboundary_structure(structure, twinboundary_conf):
                             layers=conf['layers'],
                             delta=conf['delta'],
                             shear_strain_ratio=conf['shear_strain_ratio'],
+                            expansion_ratios=conf['expansion_ratios'],
+                            make_tb_flat=conf['make_tb_flat'],
                             )
     std = twinpy.get_twinboundary_standardize(
-            get_lattice=get_lattice,
-            move_atoms_into_unitcell=move_atoms_into_unitcell,
+            get_lattice=conf['get_lattice'],
+            move_atoms_into_unitcell=conf['move_atoms_into_unitcell'],
             )
-    twinboundary_std_cell = std.get_standardized_cell(
-            to_primitive=to_primitive,
-            no_idealize=no_idealize,
-            symprec=symprec,
-            no_sort=no_sort,
-            get_sort_list=get_sort_list,
-            )
-    twinboundary_structure = get_aiida_structure(cell=std.cell)
-    twinboundary_structure.label = 'twinboundary_orig'
-    twinboundary_structure.description = \
+
+    # twinboundary original structure
+    tb_orig_cell = std.cell
+    tb_orig_structure = get_aiida_structure(cell=tb_orig_cell)
+    tb_orig_structure.label = 'twinboundary_orig'
+    tb_orig_structure.description = \
             'twinboundary not standardized original structure'
-    vasp_input_structure = get_aiida_structure(cell=twinboundary_std_cell)
-    vasp_input_structure.label = 'twinboundary'
-    vasp_input_structure.description = \
+
+    # twinboundary standardized structure
+    tb_std_cell = std.get_standardized_cell(
+            to_primitive=conf['to_primitive'],
+            no_idealize=conf['no_idealize'],
+            symprec=conf['symprec'],
+            no_sort=['no_sort'],
+            get_sort_list=['get_sort_list'],
+            )
+    tb_std_structure = get_aiida_structure(cell=tb_std_cell)
+    tb_std_structure.label = 'twinboundary'
+    tb_std_structure.description = \
             'twinboundary standardized structure'
 
     return_vals = {}
-    return_vals['parameters'] = Dict(dict=parameters)
-    return_vals[twinboundary_structure.label] = twinboundary_structure
-    return_vals[vasp_input_structure.label] = vasp_input_structure
+    return_vals['twinboundary_parameters'] = Dict(dict=conf)
+    return_vals[tb_orig_structure.label] = tb_orig_structure
+    return_vals[tb_std_structure.label] = tb_std_structure
 
     return return_vals
 
 
 @calcfunction
-def get_twinboundary_shear_structure(twinboundary_shear_conf,
+def get_twinboundary_shear_structure(twinboundary_relax_structure,
                                      shear_strain_ratio,
-                                     previous_relax_pk,
-                                     previous_shear_strain_ratio=None,
-                                     previous_original_structure=None):
+                                     previous_relax_structure=None,
+                                     **additional_relax_structures,
+                                     ):
     """
     If latest_structure is None, use s=0 structure as the original
-    structure to be sheared.
+    structure to be sheared. shear_strain_ratios must include zero.
+    additional_relaxes is AttributeDict.
     """
-    conf = twinboundary_shear_conf.get_dict()
-    aiida_twinboundary_relax = AiidaTwinBoudnaryRelaxWorkChain(
-            load_node(conf['twinboundary_relax_pk']))
-    aiida_relax_collection = aiida_twinboundary_relax.get_aiida_relax(
-            additional_relax_pks=conf['additional_relax_pks'])
-    twinboundary_analyzer = aiida_twinboundary_relax.get_twinboundary_analyzer(
-            additional_relax_pks=conf['additional_relax_pks'])
+    relax_wf = WorkflowFactory('vasp.relax')
+    tb_relax_wf = WorkflowFactory('twinpy.twinboundary_relax')
 
-    if previous_shear_strain_ratio is None:
-        orig_cell = twinboundary_analyzer.get_shear_cell(
-                shear_strain_ratio=shear_strain_ratio.value,
-                is_standardize=False)
-        cell = twinboundary_analyzer.get_shear_cell(
-            shear_strain_ratio=shear_strain_ratio.value,
-            is_standardize=True)
+    ratio = shear_strain_ratio.value
+    tb_rlx_node = get_create_node(twinboundary_relax_structure.pk,
+                                   tb_relax_wf)
+    addi_rlx_pks = []
+    for i in range(len(additional_relax_structures)):
+        label = 'additional_structure_%02d' % (i+1)
+        structure_pk_ = additional_relax_structures[label].pk
+        rlx_pk = get_create_node(structure_pk_,
+                                  relax_wf).pk
+        addi_rlx_pks.append(rlx_pk)
 
+    aiida_twinboundary_relax = \
+            AiidaTwinBoudnaryRelaxWorkChain(tb_rlx_node)
+    aiida_rlx = aiida_twinboundary_relax.get_aiida_relax(
+                    additional_relax_pks=addi_rlx_pks)
+    tb_analyzer = \
+            aiida_twinboundary_relax.get_twinboundary_analyzer(
+                additional_relax_pks=addi_rlx_pks)
+
+    if addi_rlx_pks == []:
+        kpt_info = aiida_rlx.get_kpoints_info()
     else:
-        previous_original_cell = get_cell_from_aiida(
-                previous_original_structure)
-        previous_aiida_relax = AiidaRelaxWorkChain(
-                load_node(previous_relax_pk.value))
-        previous_relax_analyzer = previous_aiida_relax.get_relax_analyzer(
-                original_cell=previous_original_cell)
+        kpt_info = aiida_rlx.aiida_relaxes[0].get_kpoints_info()
+
+    if previous_relax_structure is None:
+        orig_cell = tb_analyzer.get_shear_cell(
+                shear_strain_ratio=ratio,
+                is_standardize=False)
+        cell = tb_analyzer.get_shear_cell(
+            shear_strain_ratio=ratio,
+            is_standardize=True)
+    else:
+        prev_rlx_node = get_create_node(previous_relax_structure.pk, relax_wf)
+        create_tb_shr_node = get_create_node(prev_rlx_node.inputs.structure.pk,
+                                             CalcFunctionNode)
+        prev_orig_structure = \
+                create_tb_shr_node.outputs.twinboundary_shear_structure_orig
+        prev_orig_cell = get_cell_from_aiida(prev_orig_structure)
+        prev_aiida_rlx = AiidaRelaxWorkChain(prev_rlx_node)
+        prev_rlx_analyzer = prev_aiida_rlx.get_relax_analyzer(
+                original_cell=prev_orig_cell)
         atom_positions = \
-                previous_relax_analyzer.final_cell_in_original_frame[1]
-        orig_cell = twinboundary_analyzer.get_shear_cell(
-                shear_strain_ratio=shear_strain_ratio.value,
+                prev_rlx_analyzer.final_cell_in_original_frame[1]
+        orig_cell = tb_analyzer.get_shear_cell(
+                shear_strain_ratio=ratio,
                 is_standardize=False,
                 atom_positions=atom_positions)
-        cell = twinboundary_analyzer.get_shear_cell(
-            shear_strain_ratio=shear_strain_ratio.value,
+        cell = tb_analyzer.get_shear_cell(
+            shear_strain_ratio=ratio,
             is_standardize=True,
-            # is_standardize=False,
             atom_positions=atom_positions)
 
     orig_structure = get_aiida_structure(cell=orig_cell)
     structure = get_aiida_structure(cell=cell)
 
     # kpoints
-    kpt_info = aiida_relax_collection.aiida_relaxes[0].get_kpoints_info()
     rlx_mesh = np.array(kpt_info['mesh'])
     rlx_offset = np.array(kpt_info['offset'])
     rlx_kpoints = (rlx_mesh, rlx_offset)
-    std_base = StandardizeCell(twinboundary_analyzer.relax_analyzer.original_cell)
-    orig_kpoints = std_base.convert_kpoints(kpoints=rlx_kpoints,
-                                            kpoints_type='primitive')['original']
+    std_base = StandardizeCell(tb_analyzer.relax_analyzer.original_cell)
+    orig_kpoints = std_base.convert_kpoints(
+            kpoints=rlx_kpoints,
+            kpoints_type='primitive')['original']
     std = StandardizeCell(orig_cell)
     kpoints = std.convert_kpoints(kpoints=orig_kpoints,
                                   kpoints_type='original')['primitive']
@@ -283,27 +316,29 @@ def get_twinboundary_shear_structure(twinboundary_shear_conf,
     return return_vals
 
 
-@calcfunction
-def get_modulation_structures(modulation_conf):
-    conf = modulation_conf.get_dict()
-    phonon = get_phonon_from_aiida(conf['phonon_pk'])
-    freq = []
-    for phonon_mode in conf['phonon_modes']:
-        freq.append(phonon.get_frequencies(phonon_mode[0]).tolist())
 
-    unitcell = phonon.get_unitcell().cell
-    primitive = phonon.get_primitive().cell
-    u2p = np.round(np.dot(np.linalg.inv(primitive.T), unitcell.T)).astype(int)
-    dimension = np.dot(u2p, conf['dimension'])
-    phonon.set_modulations(dimension=dimension,
-                           phonon_modes=conf['phonon_modes'])
-    modulations = phonon.get_modulated_supercells()
 
-    return_vals = {}
-    return_vals['frequencies'] = Dict(dict={'frequencies': freq})
-    for i, supercell in enumerate(modulations):
-        modulation = phonopy_atoms_to_structure(supercell)
-        modulation.label = 'modulation_%03d' % (i+1)
-        modulation.description = 'modulation_%03d' % (i+1)
-        return_vals[modulation.label] = modulation
-    return return_vals
+# @calcfunction
+# from aiida_twinpy.common.interfaces import get_phonon_from_aiida
+# def get_modulation_structures(modulation_conf):
+#     conf = modulation_conf.get_dict()
+#     phonon = get_phonon_from_aiida(conf['phonon_pk'])
+#     freq = []
+#     for phonon_mode in conf['phonon_modes']:
+#         freq.append(phonon.get_frequencies(phonon_mode[0]).tolist())
+#     unitcell = phonon.get_unitcell().cell
+#     primitive = phonon.get_primitive().cell
+#     u2p = np.round(np.dot(np.linalg.inv(primitive.T), unitcell.T)).astype(
+#         int)
+#     dimension = np.dot(u2p, conf['dimension'])
+#     phonon.set_modulations(dimension=dimension,
+#                            phonon_modes=conf['phonon_modes'])
+#     modulations = phonon.get_modulated_supercells()
+#     return_vals = {}
+#     return_vals['frequencies'] = Dict(dict={'frequencies': freq})
+#     for i, supercell in enumerate(modulations):
+#         modulation = phonopy_atoms_to_structure(supercell)
+#         modulation.label = 'modulation_%03d' % (i+1)
+#         modulation.description = 'modulation_%03d' % (i+1)
+#         return_vals[modulation.label] = modulation
+#     return return_vals

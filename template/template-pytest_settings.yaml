@@ -1,0 +1,5 @@
+potential_family: PBE.54
+vasp_code: vasp544mpi
+queue_name: ''
+computer: vega
+group: 'test/aiida-twinpy'
