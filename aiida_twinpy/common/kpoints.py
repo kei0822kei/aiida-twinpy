@@ -36,6 +36,7 @@ def fix_kpoints(calculator_settings:Dict,
         >>>     'interval': 0.15,
         >>>     'decimal_handling': 'round',
         >>>     'use_symmetry': True,
+        >>>     'use_gamma_center': True,
         >>>     })
 
     Returns:
