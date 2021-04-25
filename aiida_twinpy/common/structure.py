@@ -7,10 +7,9 @@ This module creates shear structure and twin boundary structure.
 from typing import Union
 import numpy as np
 from aiida.engine import calcfunction
-from aiida.orm import (CalcFunctionNode, Dict, Float, Int, KpointsData, Node,
+from aiida.orm import (CalcFunctionNode, Dict, Float, Int, KpointsData,
                        StructureData)
 from aiida.plugins import WorkflowFactory
-from aiida_twinpy.common.utils import get_create_node
 from twinpy.api_twinpy import get_twinpy_from_cell
 from twinpy.interfaces.aiida.base import (get_aiida_structure,
                                           get_cell_from_aiida)
@@ -18,6 +17,7 @@ from twinpy.interfaces.aiida.vasp import AiidaRelaxWorkChain
 from twinpy.interfaces.aiida.twinboundary \
         import AiidaTwinBoudnaryRelaxWorkChain
 from twinpy.structure.standardize import StandardizeCell
+from aiida_twinpy.common.utils import get_create_node
 
 
 @calcfunction
@@ -155,6 +155,7 @@ def get_twinboundary_structure(structure:StructureData,
         >>>     'shear_strain_ratio': 0.,
         >>>     'expansion_ratios': [1., 1., 1.2],
         >>>     'make_tb_flat': True,
+        >>>     'no_standardize': False,
         >>>     })
 
         >>> # following settings are automatically set
@@ -166,7 +167,8 @@ def get_twinboundary_structure(structure:StructureData,
         >>> no_sort = True
         >>> get_sort_list = False
     """
-    conf = {
+    conf = twinboundary_conf.get_dict()
+    fixed_conf = {
         'get_lattice': False,
         'move_atoms_into_unitcell': True,
         'to_primitive': False,
@@ -175,7 +177,7 @@ def get_twinboundary_structure(structure:StructureData,
         'no_sort': True,
         'get_sort_list': False,
         }
-    conf.update(twinboundary_conf.get_dict())
+    conf.update(fixed_conf)
     cell = get_cell_from_aiida(structure=structure,
                                get_scaled_positions=True)
     twinpy = get_twinpy_from_cell(cell=cell,
@@ -202,17 +204,23 @@ def get_twinboundary_structure(structure:StructureData,
             'twinboundary not standardized original structure'
 
     # twinboundary standardized structure
-    tb_std_cell = std.get_standardized_cell(
-            to_primitive=conf['to_primitive'],
-            no_idealize=conf['no_idealize'],
-            symprec=conf['symprec'],
-            no_sort=['no_sort'],
-            get_sort_list=['get_sort_list'],
-            )
-    tb_std_structure = get_aiida_structure(cell=tb_std_cell)
-    tb_std_structure.label = 'twinboundary'
-    tb_std_structure.description = \
-            'twinboundary standardized structure'
+    if 'no_standardize' in conf and conf['no_standardize'] is True:
+        tb_std_structure = get_aiida_structure(cell=tb_orig_cell)
+        tb_std_structure.label = 'twinboundary'
+        tb_std_structure.description = \
+          'same as orig_twinboundary'
+    else:
+        tb_std_cell = std.get_standardized_cell(
+                to_primitive=conf['to_primitive'],
+                no_idealize=conf['no_idealize'],
+                symprec=conf['symprec'],
+                no_sort=conf['no_sort'],
+                get_sort_list=conf['get_sort_list'],
+                )
+        tb_std_structure = get_aiida_structure(cell=tb_std_cell)
+        tb_std_structure.label = 'twinboundary'
+        tb_std_structure.description = \
+                'twinboundary standardized structure'
 
     return_vals = {}
     return_vals['twinboundary_parameters'] = Dict(dict=conf)
@@ -314,9 +322,6 @@ def get_twinboundary_shear_structure(twinboundary_relax_structure,
     return_vals['kpoints'] = kpt
 
     return return_vals
-
-
-
 
 # @calcfunction
 # from aiida_twinpy.common.interfaces import get_phonon_from_aiida
